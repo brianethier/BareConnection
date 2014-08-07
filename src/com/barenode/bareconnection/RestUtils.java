@@ -62,6 +62,10 @@ public class RestUtils {
         return json == null ? null : new Gson().fromJson(json, clss);
     }
 
+    public static <T> T fromJson(InputStream in, Class<T> clss) throws JsonParseException, IOException {
+    	return fromJson(in, clss, RestConnection.CHARSET);
+    }
+
     public static <T> T fromJson(InputStream in, Class<T> clss, String charset) throws JsonParseException, IOException {
     	JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
     	T object = new Gson().fromJson(reader, clss);

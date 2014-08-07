@@ -32,8 +32,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import javax.xml.bind.DatatypeConverter;
-
 import com.google.gson.JsonParseException;
 
 public class RestConnection {
@@ -460,7 +458,7 @@ public class RestConnection {
 	    		connection.setReadTimeout(mProperties.getReadTimeout());
     			connection.setRequestProperty("Accept-Charset", mOutgoingCharset);
 	    		if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
-	    			connection.setRequestProperty("Authorization", "Basic " + DatatypeConverter.printBase64Binary((mProperties.getUsername() +":"+ mProperties.getPassword()).getBytes()));
+	    			connection.setRequestProperty("Authorization", "Basic " + Base64.encodeBytes((mProperties.getUsername() +":"+ mProperties.getPassword()).getBytes()));
 	    		}
 	    		if(mCookies != null) {
 		    		for(String cookie : mCookies) {
