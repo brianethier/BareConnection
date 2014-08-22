@@ -19,39 +19,35 @@ import com.google.gson.stream.JsonReader;
 public class RestUtils {
 
     
-	private RestUtils() {		
-	}
-	
+    private RestUtils() {        
+    }
     
-    public static String buildQuery(HashMap<String, String> params, String charset) {
-    	StringBuilder sb = new StringBuilder();
-    	if(params != null) {
-			try {
-    		Iterator<Entry<String, String>> iterator = params.entrySet().iterator();
-	    		while(iterator.hasNext()) {
-	    			Entry<String, String> entry = iterator.next();
-	    			sb.append(entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), charset));
-	    			if(iterator.hasNext()) {
-	    				sb.append("&");
-	    			}
-	    		}
-			} catch (UnsupportedEncodingException e) {
-				return "";
-			}
-    	}
-    	return sb.toString();
+    
+    public static String buildQuery(HashMap<String, String> params, String charset) throws UnsupportedEncodingException {
+        StringBuilder sb = new StringBuilder();
+        if(params != null) {
+            Iterator<Entry<String, String>> iterator = params.entrySet().iterator();
+            while(iterator.hasNext()) {
+                Entry<String, String> entry = iterator.next();
+                sb.append(entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), charset));
+                if(iterator.hasNext()) {
+                    sb.append("&");
+                }
+            }
+        }
+        return sb.toString();
     }
 
-    public static String readString(InputStream is, String charset) throws UnsupportedEncodingException {
-    	try {
-	        Scanner s = new Scanner(is, charset);
-	        s.useDelimiter("\\A");
-	        String data = s.hasNext() ? s.next() : "";
-	        s.close();
-	        return data;
-    	} catch(IllegalArgumentException e) {
-    		throw new UnsupportedEncodingException(e.getMessage());
-    	}
+    public static String readString(InputStream is, String charset) throws IOException {
+        try {
+            Scanner s = new Scanner(is, charset);
+            s.useDelimiter("\\A");
+            String data = s.hasNext() ? s.next() : "";
+            s.close();
+            return data;
+        } catch(IllegalArgumentException e) {
+            throw new UnsupportedEncodingException(e.getMessage());
+        }
     }
 
     public static String toJson(Object src) {
@@ -62,25 +58,30 @@ public class RestUtils {
         return json == null ? null : new Gson().fromJson(json, clss);
     }
 
-    public static <T> T fromJson(InputStream in, Class<T> clss) throws JsonParseException, IOException {
-    	return fromJson(in, clss, RestConnection.CHARSET);
+    public static <T> T fromJson(InputStream in, Class<T> clss) throws IOException {
+        return fromJson(in, clss, RestConnection.CHARSET);
     }
 
-    public static <T> T fromJson(InputStream in, Class<T> clss, String charset) throws JsonParseException, IOException {
-    	JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
-    	T object = new Gson().fromJson(reader, clss);
-    	reader.close();
-    	return object;
+    public static <T> T fromJson(InputStream in, Class<T> clss, String charset) throws IOException {
+        try {
+            JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
+            T object = new Gson().fromJson(reader, clss);
+            reader.close();
+            return object;
+        }
+        catch(JsonParseException e) {
+            throw new IOException(e);
+        }
     }
     
     public static void copy(InputStream in, OutputStream out) throws IOException {
-    	byte[] bytes = new byte[4096];
-    	int totalRead = 0;
-    	while((totalRead = in.read(bytes)) > 0) {
-    		out.write(bytes, 0, totalRead);;
-    		out.flush();
-    	}
-    	out.close();
+        byte[] bytes = new byte[4096];
+        int totalRead = 0;
+        while((totalRead = in.read(bytes)) > 0) {
+            out.write(bytes, 0, totalRead);;
+            out.flush();
+        }
+        out.close();
     }
     
 }

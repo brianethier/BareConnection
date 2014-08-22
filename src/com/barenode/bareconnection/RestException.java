@@ -4,36 +4,40 @@ package com.barenode.bareconnection;
 @SuppressWarnings("serial")
 public class RestException extends Exception {
 
-    public static final int UNKNOWN_ERROR = -1;
+    private final int mStatusCode;
+    private final String mErrorResponse;
 
 
-    private int mResponseCode = UNKNOWN_ERROR;
+    public RestException(int statusCode, Throwable cause) {
+        super(cause);
+        mStatusCode = statusCode;
+        mErrorResponse = null;
+    }
 
-
-    public RestException(int responseCode) {
+    public RestException(int statusCode, String errorResponse) {
         super();
-        mResponseCode = responseCode;
+        mStatusCode = statusCode;
+        mErrorResponse = errorResponse;
     }
 
-    public RestException(int responseCode, String message) {
-        super(message);
-        mResponseCode = responseCode;
+    
+    public int getStatusCode() {
+        return mStatusCode;
     }
 
-    public RestException(String message) {
-        super(message);
+    public String getErrorResponse() {
+        return mErrorResponse;
     }
-
-    public RestException(int responseCode, Throwable cause) {
-        super(cause);
-        mResponseCode = responseCode;
+    
+    public boolean isStatusCodeKnown() {
+        return mStatusCode != RestConnection.SC_UNKNOWN;
     }
-
-    public RestException(Throwable cause) {
-        super(cause);
+    
+    public boolean isStatusCodeSuccessful() {
+        return mStatusCode / 100 == 2;
     }
-
-    public int getResponseCode() {
-        return mResponseCode;
+    
+    public boolean isErrorResponse() {
+        return mErrorResponse != null;
     }
 }

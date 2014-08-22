@@ -32,23 +32,24 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import com.google.gson.JsonParseException;
-
 public class RestConnection {
 
-	public static final int HTTP_UNKNOWN_CODE = -1;
-	public static final int HTTP_OK = 200;
-	public static final int HTTP_CREATED = 201;
-	public static final int HTTP_INTERNAL_SERVER_ERROR = 500;
-	
-	public static final String CHARSET = "UTF-8";
-	public static final String CRLF = "\r\n";
+    public static final int SC_UNKNOWN = -1;
+    public static final int SC_OK = 200;
+    public static final int SC_CREATED = 201;
+    public static final int SC_NOT_FOUND = 404;
+    public static final int SC_PRECONDITION_FAILED = 412;
+    public static final int SC_SERVER_ERROR = 500;
+
+    public static final String JSON_CONTENT_TYPE = "application/javascript";
+    public static final String CHARSET = "UTF-8";
+    public static final String CRLF = "\r\n";
 
 
     private final HttpURLConnection mConnection;
-	private String mIncomingCharset = CHARSET;
-	private String mOutgoingCharset = CHARSET;
-    private int mResponseCode = HTTP_UNKNOWN_CODE;
+    private String mIncomingCharset = CHARSET;
+    private String mOutgoingCharset = CHARSET;
+    private int mResponseCode = SC_UNKNOWN;
 
 
     public RestConnection(HttpURLConnection connection) {
@@ -61,28 +62,28 @@ public class RestConnection {
     }
 
     public void head() throws RestException {
-    	ensureNewConnection();
+        ensureNewConnection();
         try {
             mConnection.setRequestMethod("HEAD");
             checkResponseCode();
         }
         catch(IOException e) {
-            throw new RestException(e);
+            throw new RestException(mResponseCode, e);
         }
         finally {
             mConnection.disconnect();
         }
     }
 
-	public <T>T get(Class<T> clss) throws RestException {
-		ensureNewConnection();
+    public <T>T get(Class<T> clss) throws RestException {
+        ensureNewConnection();
         try {
             mConnection.setRequestMethod("GET");
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
         }
         catch(IOException e) {
-            throw new RestException(e);
+            throw new RestException(mResponseCode, e);
         }
         finally {
             if(!clss.isAssignableFrom(InputStream.class)) {
@@ -91,21 +92,21 @@ public class RestConnection {
         }
     }
 
-	public void put() throws RestException {
-		put(null, String.class);
+    public void put() throws RestException {
+        put(null, String.class);
     }
 
-	public <T>T put(Object object, Class<T> clss) throws RestException {
-		ensureNewConnection();
+    public <T>T put(Object object, Class<T> clss) throws RestException {
+        ensureNewConnection();
         try {
             mConnection.setRequestMethod("PUT");
-	        mConnection.setDoOutput(true);
+            mConnection.setDoOutput(true);
             write(mConnection.getOutputStream(), object);
-        	checkResponseCode();
+            checkResponseCode();
             return read(mConnection.getInputStream(), clss);
         }
         catch(IOException e) {
-            throw new RestException(e);
+            throw new RestException(mResponseCode, e);
         }
         finally {
             if(!clss.isAssignableFrom(InputStream.class)) {
@@ -114,17 +115,17 @@ public class RestConnection {
         }
     }
 
-	public <T>T post(Object object, Class<T> clss) throws RestException {
-		ensureNewConnection();
+    public <T>T post(Object object, Class<T> clss) throws RestException {
+        ensureNewConnection();
         try {
             mConnection.setRequestMethod("POST");
-	        mConnection.setDoOutput(true);
+            mConnection.setDoOutput(true);
             write(mConnection.getOutputStream(), object);
-        	checkResponseCode();
+            checkResponseCode();
             return read(mConnection.getInputStream(), clss);
         }
         catch(IOException e) {
-            throw new RestException(e);
+            throw new RestException(mResponseCode, e);
         }
         finally {
             if(!clss.isAssignableFrom(InputStream.class)) {
@@ -133,19 +134,19 @@ public class RestConnection {
         }
     }
 
-	public <T>T post(HashMap<String, String> params, Class<T> clss) throws RestException {
-		ensureNewConnection();
+    public <T>T post(HashMap<String, String> params, Class<T> clss) throws RestException {
+        ensureNewConnection();
         try {
-        	String query = RestUtils.buildQuery(params, mOutgoingCharset);
+            String query = RestUtils.buildQuery(params, mOutgoingCharset);
             mConnection.setRequestMethod("POST");
             mConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=" + mOutgoingCharset);
-	        mConnection.setDoOutput(true);
-	        write(mConnection.getOutputStream(), query);
-        	checkResponseCode();
+            mConnection.setDoOutput(true);
+            write(mConnection.getOutputStream(), query);
+            checkResponseCode();
             return read(mConnection.getInputStream(), clss);
         }
         catch(IOException e) {
-            throw new RestException(e);
+            throw new RestException(mResponseCode, e);
         }
         finally {
             if(!clss.isAssignableFrom(InputStream.class)) {
@@ -154,19 +155,19 @@ public class RestConnection {
         }
     }
 
-	public <T>T post(List<Entity> entities, Class<T> clss) throws RestException {
-		ensureNewConnection();
+    public <T>T post(List<Entity> entities, Class<T> clss) throws RestException {
+        ensureNewConnection();
         try {
-	        String boundary = Long.toHexString(System.currentTimeMillis());
+            String boundary = Long.toHexString(System.currentTimeMillis());
             mConnection.setRequestMethod("POST");
-	        mConnection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-    		mConnection.setDoOutput(true);
+            mConnection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            mConnection.setDoOutput(true);
             writeEntities(mConnection.getOutputStream(), entities, boundary);
-        	checkResponseCode();
+            checkResponseCode();
             return read(mConnection.getInputStream(), clss);
         }
         catch(IOException e) {
-            throw new RestException(e);
+            throw new RestException(mResponseCode, e);
         }
         finally {
             if(!clss.isAssignableFrom(InputStream.class)) {
@@ -175,15 +176,15 @@ public class RestConnection {
         }
     }
 
-	public <T>T delete(Class<T> clss) throws RestException {
-		ensureNewConnection();
+    public <T>T delete(Class<T> clss) throws RestException {
+        ensureNewConnection();
         try {
             mConnection.setRequestMethod("DELETE");
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
         }
         catch(IOException e) {
-            throw new RestException(e);
+            throw new RestException(mResponseCode, e);
         }
         finally {
             if(!clss.isAssignableFrom(InputStream.class)) {
@@ -191,81 +192,74 @@ public class RestConnection {
             }
         }
     }
-	
-	public List<String> getCookies() {
-		if(mResponseCode == HTTP_UNKNOWN_CODE) {
-    		throw new IllegalStateException("A connection to the server needs to be made before retrieving cookies.");
-		}
-		ArrayList<String> cookies = new ArrayList<String>();
-		List<String> incomingCookies = mConnection.getHeaderFields().get("Set-Cookie");
-		for(String cookie : incomingCookies) {
-			cookies.add(cookie.split(";", 2)[0]);
-		}
-		return cookies;
-	}
-	
-	public int getResponseCode() {
-		return mResponseCode;
-	}
+    
+    public List<String> getCookies() {
+        if(mResponseCode == SC_UNKNOWN) {
+            throw new IllegalStateException("A connection to the server needs to be made before retrieving cookies.");
+        }
+        ArrayList<String> cookies = new ArrayList<String>();
+        List<String> incomingCookies = mConnection.getHeaderFields().get("Set-Cookie");
+        for(String cookie : incomingCookies) {
+            cookies.add(cookie.split(";", 2)[0]);
+        }
+        return cookies;
+    }
+    
+    public int getResponseCode() {
+        return mResponseCode;
+    }
 
     public void disconnect() {
         mConnection.disconnect();
     }
     
     private void ensureNewConnection() {
-    	if(mResponseCode != HTTP_UNKNOWN_CODE) {
-    		throw new IllegalStateException("A RestConnection could only be used once!");
-    	}
+        if(mResponseCode != SC_UNKNOWN) {
+            throw new IllegalStateException("A RestConnection could only be used once!");
+        }
     }
     
     private void checkResponseCode() throws RestException {
-		try {
-			mResponseCode = mConnection.getResponseCode();
-	        if(mResponseCode / 100 != 2) {
-	            throw new RestException(mResponseCode, RestUtils.readString(mConnection.getErrorStream(), mIncomingCharset));
-	        }
-	        updateIncomingCharset();
-		} catch (IOException e) {
-            throw new RestException(e);
-		}
+        try {
+            mResponseCode = mConnection.getResponseCode();
+            if(mResponseCode / 100 != 2) {
+                String responseError = RestUtils.readString(mConnection.getErrorStream(), mIncomingCharset);
+                throw new RestException(mResponseCode, responseError);
+            }
+            updateIncomingCharset();
+        } catch (IOException e) {
+            throw new RestException(mResponseCode, e);
+        }
     }
     
     private void updateIncomingCharset() {
-    	String contentType = mConnection.getHeaderField("Content-Type");
-    	for(String param : contentType.replace(" ", "").split(";")) {
-    	    if(param.startsWith("charset=")) {
-    	        mIncomingCharset = param.split("=", 2)[1];
-    	        break;
-    	    }
-    	}
-    }
-	
-    private void setIncomingCharset(String charset) {
-		mIncomingCharset = charset;
-	}
-	
-	private void setOutgoingCharset(String charset) {
-		mOutgoingCharset = charset;
-	}
-    
-    @SuppressWarnings("unchecked")
-	private <T> T read(InputStream in, Class<T> clss) throws IOException, RestException {
-    	try {
-            if(clss.isAssignableFrom(InputStream.class)) {
-                return (T) in;
-            }
-            else if(clss.isAssignableFrom(String.class)) {
-                return (T) RestUtils.readString(in, mIncomingCharset);
-            }
-            else {
-            	return RestUtils.fromJson(in, clss, mIncomingCharset);
+        String contentType = mConnection.getHeaderField("Content-Type");
+        for(String param : contentType.replace(" ", "").split(";")) {
+            if(param.startsWith("charset=")) {
+                mIncomingCharset = param.split("=", 2)[1];
+                break;
             }
         }
-    	catch(UnsupportedEncodingException e) {
-            throw new RestException(HTTP_INTERNAL_SERVER_ERROR, e);
-    	}
-        catch(JsonParseException e) {
-            throw new RestException(HTTP_INTERNAL_SERVER_ERROR, e);
+    }
+    
+    private void setIncomingCharset(String charset) {
+        mIncomingCharset = charset;
+    }
+    
+    private void setOutgoingCharset(String charset) {
+        mOutgoingCharset = charset;
+    }
+    
+    @SuppressWarnings("unchecked")
+    private <T> T read(InputStream in, Class<T> clss) throws IOException {
+        if(clss.isAssignableFrom(InputStream.class)) {
+            return (T) in;
+        }
+        else if(clss.isAssignableFrom(String.class)) {
+            return (T) RestUtils.readString(in, mIncomingCharset);
+        }
+        else {
+            return RestUtils.fromJson(in, clss, mIncomingCharset);
         }
     }
 
@@ -274,217 +268,219 @@ public class RestConnection {
             RestUtils.copy((InputStream) object, out);
         }
         else if(object instanceof String) {
-        	String data = (String) object;
-	        out.write(data.getBytes(mOutgoingCharset));
-	        out.flush();
-	        out.close();
+            String data = (String) object;
+            out.write(data.getBytes(mOutgoingCharset));
+            out.flush();
+            out.close();
         }
         else if(object != null) {
-        	String json = RestUtils.toJson(object);
-	        out.write(json.getBytes(mOutgoingCharset));
-	        out.flush();
-	        out.close();
+            String json = RestUtils.toJson(object);
+            out.write(json.getBytes(mOutgoingCharset));
+            out.flush();
+            out.close();
         }
     }
     
     private void writeEntities(OutputStream out, List<Entity> entities, String boundary) throws IOException {
-    	if(entities != null) {
-    		PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, mOutgoingCharset), true);
-    		for(Entity entity : entities) {
-    			if(entity instanceof StringEntity) {
-    				StringEntity stringEntity = (StringEntity) entity;
-    		        writer.append("--" + boundary).append(CRLF);
-    		        writer.append("Content-Disposition: form-data; name=\"" + stringEntity.name + "\"").append(CRLF);
-    		        writer.append("Content-Type: text/plain; charset=" + stringEntity.charset).append(CRLF);
-    		        writer.append(CRLF).append(stringEntity.value).append(CRLF).flush();
-    			}
-    			else if(entity instanceof FileEntity) {
-    				FileEntity fileEntity = (FileEntity) entity;
-    		        writer.append("--" + boundary).append(CRLF);
-    		        writer.append("Content-Disposition: form-data; name=\"textFile\"; filename=\"" + fileEntity.name + "\"").append(CRLF);
-    		        writer.append("Content-Type: text/plain; charset=" + fileEntity.charset).append(CRLF); // Text file itself must be saved in this charset!
-    		        writer.append(CRLF).flush();
-    	            RestUtils.copy(new FileInputStream(fileEntity.file), out);
-    		        out.flush(); // Important before continuing with writer!
-    		        writer.append(CRLF).flush(); // CRLF is important! It indicates end of boundary.
-    			}
-    			else if(entity instanceof BinaryFileEntity) {
-    				BinaryFileEntity fileEntity = (BinaryFileEntity) entity;
-    		        writer.append("--" + boundary).append(CRLF);
-    		        writer.append("Content-Disposition: form-data; name=\"binaryFile\"; filename=\"" + fileEntity.name + "\"").append(CRLF);
-    		        writer.append("Content-Type: " + URLConnection.guessContentTypeFromName(fileEntity.file.getName())).append(CRLF);
-    		        writer.append("Content-Transfer-Encoding: binary").append(CRLF);
-    		        writer.append(CRLF).flush();
-    	            RestUtils.copy(new FileInputStream(fileEntity.file), out);
-    		        out.flush(); // Important before continuing with writer!
-    		        writer.append(CRLF).flush(); // CRLF is important! It indicates end of boundary.
-    			}
-    		}
+        if(entities != null) {
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, mOutgoingCharset), true);
+            for(Entity entity : entities) {
+                if(entity instanceof StringEntity) {
+                    StringEntity stringEntity = (StringEntity) entity;
+                    writer.append("--" + boundary).append(CRLF);
+                    writer.append("Content-Disposition: form-data; name=\"" + stringEntity.name + "\"").append(CRLF);
+                    writer.append("Content-Type: text/plain; charset=" + stringEntity.charset).append(CRLF);
+                    writer.append(CRLF).append(stringEntity.value).append(CRLF).flush();
+                }
+                else if(entity instanceof FileEntity) {
+                    FileEntity fileEntity = (FileEntity) entity;
+                    writer.append("--" + boundary).append(CRLF);
+                    writer.append("Content-Disposition: form-data; name=\"textFile\"; filename=\"" + fileEntity.name + "\"").append(CRLF);
+                    writer.append("Content-Type: text/plain; charset=" + fileEntity.charset).append(CRLF); // Text file itself must be saved in this charset!
+                    writer.append(CRLF).flush();
+                    RestUtils.copy(new FileInputStream(fileEntity.file), out);
+                    out.flush(); // Important before continuing with writer!
+                    writer.append(CRLF).flush(); // CRLF is important! It indicates end of boundary.
+                }
+                else if(entity instanceof BinaryFileEntity) {
+                    BinaryFileEntity fileEntity = (BinaryFileEntity) entity;
+                    writer.append("--" + boundary).append(CRLF);
+                    writer.append("Content-Disposition: form-data; name=\"binaryFile\"; filename=\"" + fileEntity.name + "\"").append(CRLF);
+                    writer.append("Content-Type: " + URLConnection.guessContentTypeFromName(fileEntity.file.getName())).append(CRLF);
+                    writer.append("Content-Transfer-Encoding: binary").append(CRLF);
+                    writer.append(CRLF).flush();
+                    RestUtils.copy(new FileInputStream(fileEntity.file), out);
+                    out.flush(); // Important before continuing with writer!
+                    writer.append(CRLF).flush(); // CRLF is important! It indicates end of boundary.
+                }
+            }
             // End of multipart/form-data.
             writer.append("--" + boundary + "--").append(CRLF);
-    	}
+        }
     }
     
     
     
     public static abstract class Entity {
 
-    	protected final String name;
-    	protected final String charset;
-    	
-    	private Entity(String name) {
-    		this(name, CHARSET);
-    	}
-    	
-    	private Entity(String name, String charset) {
-    		this.name = name;
-    		this.charset = charset;
-    	}
+        protected final String name;
+        protected final String charset;
+        
+        private Entity(String name) {
+            this(name, CHARSET);
+        }
+        
+        private Entity(String name, String charset) {
+            this.name = name;
+            this.charset = charset;
+        }
     }
     
     public static final class StringEntity extends Entity {
-    	
-    	private final String value;
-    	
-    	public StringEntity(String name, String value) {
-    		this(name, value, CHARSET);
-    	}
-    	
-    	public StringEntity(String name, String value, String charset) {
-    		super(name, charset);
-    		this.value = value;
-    	}
+        
+        private final String value;
+        
+        public StringEntity(String name, String value) {
+            this(name, value, CHARSET);
+        }
+        
+        public StringEntity(String name, String value, String charset) {
+            super(name, charset);
+            this.value = value;
+        }
     }
     
     public static final class FileEntity extends Entity {
-    	
-    	private final File file;
-    	
-    	public FileEntity(String name, File file) {
-    		this(name, file, CHARSET);
-    	}
-    	
-    	public FileEntity(String name, File file, String charset) {
-    		super(name, charset);
-    		this.file = file;
-    	}
+        
+        private final File file;
+        
+        public FileEntity(String name, File file) {
+            this(name, file, CHARSET);
+        }
+        
+        public FileEntity(String name, File file, String charset) {
+            super(name, charset);
+            this.file = file;
+        }
     }
     
     public static final class BinaryFileEntity extends Entity {
-    	
-    	private final File file;
-    	
-    	public BinaryFileEntity(String name, File file) {
-    		this(name, file, CHARSET);
-    	}
-    	
-    	public BinaryFileEntity(String name, File file, String charset) {
-    		super(name, charset);
-    		this.file = file;
-    	}
+        
+        private final File file;
+        
+        public BinaryFileEntity(String name, File file) {
+            this(name, file, CHARSET);
+        }
+        
+        public BinaryFileEntity(String name, File file, String charset) {
+            super(name, charset);
+            this.file = file;
+        }
     }
     
     
     public static final class Builder {
 
-    	private RestProperties mProperties = new RestProperties();
-    	private String mIncomingCharset = CHARSET;
-    	private String mOutgoingCharset = CHARSET;
-    	private String mPath;
-    	private List<String> mCookies;
-    	
-    	public Builder url(String url) {
-    		mProperties.url(url);
-    		return this;	
-    	}
-    	
-    	public Builder username(String username) {
-    		mProperties.username(username);
-    		return this;	
-    	}
-    	
-    	public Builder password(String password) {
-    		mProperties.password(password);
-    		return this;	
-    	}
-    	
-    	public Builder connectTimeout(int connectTimeout) {
-    		mProperties.connectTimeout(connectTimeout);
-    		return this;	
-    	}
-    	
-    	public Builder readTimeout(int readTimeout) {
-    		mProperties.readTimeout(readTimeout);
-    		return this;	
-    	}
-    	
-    	public Builder properties(RestProperties properties) {
-    		if(properties != null) {
-    			mProperties = properties;
-    		}
-    		return this;	
-    	}
-    	
-    	public Builder incomingCharset(String charset) {
-    		mIncomingCharset = charset;
-    		return this;	
-    	}
-    	
-    	public Builder outgoingCharset(String charset) {
-    		mOutgoingCharset = charset;
-    		return this;	
-    	}
-    	
-    	public Builder path(String path) {
-    		mPath = path;
-    		return this;	
-    	}
-    	
-    	public Builder path(String path, HashMap<String, String> params) {
-        	mPath = params == null ? path : path + "?" + RestUtils.buildQuery(params, mOutgoingCharset);
-    		return this;	
-    	}
-    	
-    	public Builder cookies(List<String> cookies) {
-    		mCookies = cookies;
-    		return this;	
-    	}
-    	
-    	public RestConnection build() throws RestException {
-			try {
-				String url = createFullUrl();
-				HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-	    		connection.setConnectTimeout(mProperties.getConnectTimeout());
-	    		connection.setReadTimeout(mProperties.getReadTimeout());
-    			connection.setRequestProperty("Accept-Charset", mOutgoingCharset);
-	    		if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
-	    			connection.setRequestProperty("Authorization", "Basic " + Base64.encodeBytes((mProperties.getUsername() +":"+ mProperties.getPassword()).getBytes()));
-	    		}
-	    		if(mCookies != null) {
-		    		for(String cookie : mCookies) {
-		    		    connection.addRequestProperty("Cookie", cookie);
-		    		}
-	    		}
-	    		RestConnection restConnection = new RestConnection(connection);
-	    		restConnection.setIncomingCharset(mIncomingCharset);
-	    		restConnection.setOutgoingCharset(mOutgoingCharset);
-	    		return restConnection;
-			} catch (MalformedURLException e) {
-				throw new RestException(e);
-			} catch (IOException e) {
-				throw new RestException(e);
-			}
-    	}
-    	
-    	private String createFullUrl() {
-    		if(mPath == null || mPath.isEmpty()) {
-    			return mProperties.getUrl();
-    		}
-    		if(mPath.startsWith("/")) {
-    			return mProperties.getUrl() + mPath;
-    		}
-    		return mProperties.getUrl() + "/" + mPath;
-    	}
+        private RestProperties mProperties = new RestProperties();
+        private String mIncomingCharset = CHARSET;
+        private String mOutgoingCharset = CHARSET;
+        private String mPath;
+        private List<String> mCookies;
+        
+        public Builder url(String url) {
+            mProperties.url(url);
+            return this;    
+        }
+        
+        public Builder username(String username) {
+            mProperties.username(username);
+            return this;    
+        }
+        
+        public Builder password(String password) {
+            mProperties.password(password);
+            return this;    
+        }
+        
+        public Builder connectTimeout(int connectTimeout) {
+            mProperties.connectTimeout(connectTimeout);
+            return this;    
+        }
+        
+        public Builder readTimeout(int readTimeout) {
+            mProperties.readTimeout(readTimeout);
+            return this;    
+        }
+        
+        public Builder properties(RestProperties properties) {
+            mProperties = properties == null ? new RestProperties() : properties;
+            return this;    
+        }
+        
+        public Builder incomingCharset(String charset) {
+            mIncomingCharset = charset;
+            return this;    
+        }
+        
+        public Builder outgoingCharset(String charset) {
+            mOutgoingCharset = charset;
+            return this;    
+        }
+        
+        public Builder path(String path) {
+            mPath = path;
+            return this;    
+        }
+        
+        public Builder path(String path, HashMap<String, String> params) throws RestException {
+            try {
+                mPath = params == null ? path : path + "?" + RestUtils.buildQuery(params, mOutgoingCharset);
+            } catch (UnsupportedEncodingException e) {
+                throw new RestException(SC_UNKNOWN, e);
+            }
+            return this;    
+        }
+        
+        public Builder cookies(List<String> cookies) {
+            mCookies = cookies;
+            return this;    
+        }
+        
+        public RestConnection build() throws RestException {
+            try {
+                String url = createFullUrl();
+                HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+                connection.setConnectTimeout(mProperties.getConnectTimeout());
+                connection.setReadTimeout(mProperties.getReadTimeout());
+                connection.setRequestProperty("Accept-Charset", mOutgoingCharset);
+                if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
+                    connection.setRequestProperty("Authorization", "Basic " + Base64.encodeBytes((mProperties.getUsername() +":"+ mProperties.getPassword()).getBytes()));
+                }
+                if(mCookies != null) {
+                    for(String cookie : mCookies) {
+                        connection.addRequestProperty("Cookie", cookie);
+                    }
+                }
+                RestConnection restConnection = new RestConnection(connection);
+                restConnection.setIncomingCharset(mIncomingCharset);
+                restConnection.setOutgoingCharset(mOutgoingCharset);
+                return restConnection;
+            } catch (MalformedURLException e) {
+                throw new RestException(SC_UNKNOWN, e);
+            } catch (IOException e) {
+                throw new RestException(SC_UNKNOWN, e);
+            }
+        }
+        
+        private String createFullUrl() {
+            if(mPath == null || mPath.isEmpty()) {
+                return mProperties.getUrl();
+            }
+            if(mPath.startsWith("/")) {
+                return mProperties.getUrl() + mPath;
+            }
+            return mProperties.getUrl() + "/" + mPath;
+        }
     }
 }
 
