@@ -7,8 +7,8 @@ public class RestProperties {
     private volatile String mUrl;
     private volatile String mUsername;
     private volatile String mPassword;
-    private volatile int mConnectTimeout;
-    private volatile int mReadTimeout;
+    private volatile int mConnectTimeout = RestConnection.DEFAULT_CONNECT_TIMEOUT;
+    private volatile int mReadTimeout = RestConnection.DEFAULT_SOCKET_TIMEOUT;
     
     
     public String getUrl() {

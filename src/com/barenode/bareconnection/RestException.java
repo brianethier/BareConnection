@@ -9,13 +9,13 @@ public class RestException extends Exception {
 
 
     public RestException(int statusCode, Throwable cause) {
-        super(cause);
+        super("(" + statusCode + ")", cause);
         mStatusCode = statusCode;
         mErrorResponse = null;
     }
 
     public RestException(int statusCode, String errorResponse) {
-        super();
+        super("(" + statusCode + ") " + errorResponse);
         mStatusCode = statusCode;
         mErrorResponse = errorResponse;
     }

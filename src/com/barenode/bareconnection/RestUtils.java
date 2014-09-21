@@ -7,8 +7,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Scanner;
 import java.util.Map.Entry;
 
@@ -59,15 +61,46 @@ public class RestUtils {
     }
 
     public static <T> T fromJson(InputStream in, Class<T> clss) throws IOException {
-        return fromJson(in, clss, RestConnection.CHARSET);
+        return fromJson(in, RestConnection.DEFAULT_CHARSET, clss);
     }
 
-    public static <T> T fromJson(InputStream in, Class<T> clss, String charset) throws IOException {
+    public static <T> T fromJson(InputStream in, String charset, Class<T> clss) throws IOException {
+        JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
+        return fromJson(reader, clss);
+    }
+
+    public static <T> T fromJson(JsonReader reader, Class<T> clss) throws IOException {
         try {
-            JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
             T object = new Gson().fromJson(reader, clss);
             reader.close();
             return object;
+        }
+        catch(JsonParseException e) {
+            throw new IOException(e);
+        }
+    }
+    
+    public static <T> List<T> fromJsonToList(InputStream in, Class<T> clss) throws IOException {
+        return fromJsonToList(in, RestConnection.DEFAULT_CHARSET, clss);
+    }
+    
+    public static <T> List<T> fromJsonToList(InputStream in, String charset, Class<T> clss) throws IOException {
+        JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
+        return fromJsonToList(reader, clss);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> List<T> fromJsonToList(JsonReader reader, Class<T> clss) throws IOException {
+        try {
+            ArrayList<T> list = new ArrayList<T>();
+            Gson gson = new Gson();
+            reader.beginArray();
+            while(reader.hasNext()) {
+                list.add((T) gson.fromJson(reader, clss));
+            }
+            reader.endArray();
+            reader.close();
+            return list;
         }
         catch(JsonParseException e) {
             throw new IOException(e);
@@ -81,7 +114,7 @@ public class RestUtils {
             out.write(bytes, 0, totalRead);;
             out.flush();
         }
-        out.close();
+        in.close();
     }
     
 }
