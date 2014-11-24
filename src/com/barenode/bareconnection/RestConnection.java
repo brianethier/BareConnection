@@ -56,7 +56,8 @@ public class RestConnection {
     
     public static final String KEY_CHARSET = "charset";
     public static final String KEY_BOUNDARY = "boundary";
-    
+
+    public static final String AUTHORIZATION_TYPE_BASIC = "Basic";
     public static final String CONTENT_TYPE_TEXT = "text/plain";
     public static final String CONTENT_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded";
     public static final String CONTENT_TYPE_JSON = "application/json";
@@ -360,6 +361,7 @@ public class RestConnection {
     public static final class Builder {
 
         private RestProperties mProperties = new RestProperties();
+        private String mAuthorizationType = AUTHORIZATION_TYPE_BASIC;
         private String mContentType = CONTENT_TYPE_JSON;
         private String mIncomingCharset = DEFAULT_CHARSET;
         private String mOutgoingCharset = DEFAULT_CHARSET;
@@ -393,6 +395,11 @@ public class RestConnection {
         
         public Builder properties(RestProperties properties) {
             mProperties = properties == null ? new RestProperties() : properties;
+            return this;    
+        }
+        
+        public Builder authorizationType(String authorizationType) {
+        	mAuthorizationType = authorizationType;
             return this;    
         }
         
@@ -438,7 +445,7 @@ public class RestConnection {
                 connection.setReadTimeout(mProperties.getReadTimeout());
                 connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
                 if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
-                    connection.setRequestProperty(HEADER_AUTHORIZATION, createBasicAuthorization());
+                    connection.setRequestProperty(HEADER_AUTHORIZATION, createAuthorization());
                 }
                 if(mCookies != null) {
                     for(String cookie : mCookies) {
@@ -470,9 +477,9 @@ public class RestConnection {
             return mProperties.getUrl() + "/" + mPath;
         }
         
-        private String createBasicAuthorization() {
+        private String createAuthorization() {
             String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
-            return "Basic " + Base64.encodeBytes(credentials.getBytes());
+            return mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
         }
     }
 }
