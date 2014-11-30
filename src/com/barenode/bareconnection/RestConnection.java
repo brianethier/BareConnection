@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -40,13 +39,47 @@ public class RestConnection {
     public static final String METHOD_DELETE = "DELETE";
     public static final String METHOD_TRACE = "TRACE";
     public static final String METHOD_CONNECT = "CONNECT";
-    
+
     public static final int SC_UNKNOWN = -1;
+	
     public static final int SC_OK = 200;
     public static final int SC_CREATED = 201;
+    public static final int SC_ACCEPTED = 202;
+    public static final int SC_NOT_AUTHORITATIVE = 203;
+    public static final int SC_NO_CONTENT = 204;
+    public static final int SC_RESET = 205;
+    public static final int SC_PARTIAL = 206;
+	
+    public static final int SC_MULT_CHOICE = 300;
+    public static final int SC_MOVED_PERM = 301;
+    public static final int SC_MOVED_TEMP = 302;
+    public static final int SC_SEE_OTHER = 303;
+    public static final int SC_NOT_MODIFIED = 304;
+    public static final int SC_USE_PROXY = 305;
+
+    public static final int SC_BAD_REQUEST = 400;
+    public static final int SC_UNAUTHORIZED = 401;
+    public static final int SC_PAYMENT_REQUIRED = 402;
+    public static final int SC_FORBIDDEN = 403;
     public static final int SC_NOT_FOUND = 404;
-    public static final int SC_PRECONDITION_FAILED = 412;
-    public static final int SC_SERVER_ERROR = 500;
+    public static final int SC_BAD_METHOD = 405;
+    public static final int SC_NOT_ACCEPTABLE = 406;
+    public static final int SC_PROXY_AUTH = 407;
+    public static final int SC_CLIENT_TIMEOUT = 408;
+    public static final int SC_CONFLICT = 409;
+    public static final int SC_GONE = 410;
+    public static final int SC_LENGTH_REQUIRED = 411;
+    public static final int SC_PRECON_FAILED = 412;
+    public static final int SC_ENTITY_TOO_LARGE = 413;
+    public static final int SC_REQ_TOO_LONG = 414;
+    public static final int SC_UNSUPPORTED_TYPE = 415;
+
+    public static final int SC_INTERNAL_ERROR = 500;
+    public static final int SC_NOT_IMPLEMENTED = 501;
+    public static final int SC_BAD_GATEWAY = 502;
+    public static final int SC_UNAVAILABLE = 503;
+    public static final int SC_GATEWAY_TIMEOUT = 504;
+    public static final int SC_VERSION = 505;
 
     public static final String HEADER_CONTENT_TYPE = "Content-Type";
     public static final String HEADER_SET_COOKIE = "Set-Cookie";
@@ -365,7 +398,7 @@ public class RestConnection {
         private String mContentType = CONTENT_TYPE_JSON;
         private String mIncomingCharset = DEFAULT_CHARSET;
         private String mOutgoingCharset = DEFAULT_CHARSET;
-        private String mPath;
+        private HashMap<String, String> mParams;
         private List<String> mCookies;
         
         public Builder url(String url) {
@@ -418,17 +451,8 @@ public class RestConnection {
             return this;    
         }
         
-        public Builder path(String path) {
-            mPath = path;
-            return this;    
-        }
-        
-        public Builder path(String path, HashMap<String, String> params) throws RestException {
-            try {
-                mPath = params == null ? path : path + "?" + RestUtils.buildQuery(params, mOutgoingCharset);
-            } catch (UnsupportedEncodingException e) {
-                throw new RestException(SC_UNKNOWN, e);
-            }
+        public Builder params(HashMap<String, String> params) {
+        	mParams = params;
             return this;    
         }
         
@@ -439,13 +463,21 @@ public class RestConnection {
         
         public RestConnection build() throws RestException {
             try {
-                String url = createFullUrl();
-                HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+                if(mProperties.getUrl() == null || mProperties.getUrl().isEmpty()) {
+                    throw new MalformedURLException("You must call url(...) with a valid URL value!");
+                }
+                StringBuilder url = new StringBuilder(mProperties.getUrl());
+                if(mParams != null && !mParams.isEmpty()) {
+                	url.append("?" + RestUtils.buildQuery(mParams, mOutgoingCharset));
+                }
+                HttpURLConnection connection = (HttpURLConnection) new URL(url.toString()).openConnection();
                 connection.setConnectTimeout(mProperties.getConnectTimeout());
                 connection.setReadTimeout(mProperties.getReadTimeout());
                 connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
                 if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
-                    connection.setRequestProperty(HEADER_AUTHORIZATION, createAuthorization());
+                    String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
+                    String authorization = mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
+                    connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
                 }
                 if(mCookies != null) {
                     for(String cookie : mCookies) {
@@ -457,29 +489,9 @@ public class RestConnection {
                 restConnection.setIncomingCharset(mIncomingCharset);
                 restConnection.setOutgoingCharset(mOutgoingCharset);
                 return restConnection;
-            } catch (MalformedURLException e) {
-                throw new RestException(SC_UNKNOWN, e);
             } catch (IOException e) {
                 throw new RestException(SC_UNKNOWN, e);
             }
-        }
-        
-        private String createFullUrl() throws MalformedURLException {
-            if(mProperties.getUrl() == null || mProperties.getUrl().isEmpty()) {
-                throw new MalformedURLException("You must call url(...) with a valid URL value!");
-            }
-            if(mPath == null || mPath.isEmpty()) {
-                return mProperties.getUrl();
-            }
-            if(mPath.startsWith("/")) {
-                return mProperties.getUrl() + mPath;
-            }
-            return mProperties.getUrl() + "/" + mPath;
-        }
-        
-        private String createAuthorization() {
-            String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
-            return mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
         }
     }
 }
