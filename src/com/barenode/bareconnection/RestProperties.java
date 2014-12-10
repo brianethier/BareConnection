@@ -5,6 +5,7 @@ package com.barenode.bareconnection;
 public class RestProperties {
 
     private volatile String mUrl;
+    private volatile String mPath;
     private volatile String mUsername;
     private volatile String mPassword;
     private volatile int mConnectTimeout = RestConnection.DEFAULT_CONNECT_TIMEOUT;
@@ -13,6 +14,10 @@ public class RestProperties {
     
     public String getUrl() {
         return mUrl;
+    }
+    
+    public String getPath() {
+        return mPath;
     }
     
     public String getUsername() {
@@ -33,6 +38,11 @@ public class RestProperties {
     
     public RestProperties url(String url) {
         mUrl = url;
+        return this;    
+    }
+    
+    public RestProperties path(String path) {
+        mPath = path;
         return this;    
     }
     

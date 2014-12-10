@@ -95,7 +95,9 @@ public class RestConnection {
     public static final String CONTENT_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded";
     public static final String CONTENT_TYPE_JSON = "application/json";
     public static final String CONTENT_TYPE_MULTIPART_FORM = "multipart/form-data";
-    
+
+    public static final String PATH_SEPARATOR = "/";
+    public static final String QUERY_SEPARATOR = "?";
     public static final String DEFAULT_CHARSET = "UTF-8";
     public static final int DEFAULT_CONNECT_TIMEOUT = 1000;
     public static final int DEFAULT_SOCKET_TIMEOUT = 10000;
@@ -406,6 +408,11 @@ public class RestConnection {
             return this;    
         }
         
+        public Builder path(String path) {
+            mProperties.path(path);
+            return this;    
+        }
+        
         public Builder username(String username) {
             mProperties.username(username);
             return this;    
@@ -467,8 +474,13 @@ public class RestConnection {
                     throw new MalformedURLException("You must call url(...) with a valid URL value!");
                 }
                 StringBuilder url = new StringBuilder(mProperties.getUrl());
+                if(mProperties.getPath() != null && !mProperties.getPath().isEmpty()) {
+                	url.append(PATH_SEPARATOR);
+                	url.append(mProperties.getPath());
+                }
                 if(mParams != null && !mParams.isEmpty()) {
-                	url.append("?" + RestUtils.buildQuery(mParams, mOutgoingCharset));
+                	url.append(QUERY_SEPARATOR);
+                	url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
                 }
                 HttpURLConnection connection = (HttpURLConnection) new URL(url.toString()).openConnection();
                 connection.setConnectTimeout(mProperties.getConnectTimeout());
