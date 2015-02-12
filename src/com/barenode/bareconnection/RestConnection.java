@@ -459,7 +459,20 @@ public class RestConnection {
         }
         
         public Builder params(HashMap<String, String> params) {
-        	mParams = params;
+        	if(mParams == null) {
+        		mParams = params;
+        	}
+        	else {
+        		mParams.putAll(params);
+        	}
+            return this;    
+        }
+        
+        public Builder param(String key, String value) {
+        	if(mParams == null) {
+        		mParams = new HashMap<String, String>();
+        	}
+        	mParams.put(key, value);
             return this;    
         }
         
