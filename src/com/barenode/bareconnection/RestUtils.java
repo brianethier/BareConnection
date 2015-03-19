@@ -8,9 +8,9 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Map.Entry;
 
@@ -25,7 +25,7 @@ public class RestUtils {
     }
     
     
-    public static String buildQuery(HashMap<String, String> params, String charset) throws UnsupportedEncodingException {
+    public static String buildQuery(Map<String, String> params, String charset) throws UnsupportedEncodingException {
         StringBuilder sb = new StringBuilder();
         if(params != null) {
             Iterator<Entry<String, String>> iterator = params.entrySet().iterator();

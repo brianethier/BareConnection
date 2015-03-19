@@ -20,12 +20,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.google.gson.stream.JsonReader;
 
@@ -107,7 +109,8 @@ public class RestConnection {
     }
 
 
-    private final HttpURLConnection mConnection;
+    private HttpURLConnection mConnection;
+    private Builder mBuilder;
     private String mContentType = CONTENT_TYPE_JSON;
     private String mIncomingCharset = DEFAULT_CHARSET;
     private String mOutgoingCharset = DEFAULT_CHARSET;
@@ -115,15 +118,24 @@ public class RestConnection {
 
 
     public RestConnection(HttpURLConnection connection) {
+        if(connection == null) {
+            throw new IllegalStateException("A RestConnection must be called with a valid HttpURLConnection or use the Builder class!");
+        }
         mConnection = connection;
     }
 
+    private RestConnection(Builder builder) {
+        mBuilder = builder;
+    }
 
-    public HttpURLConnection getConnection() {
+
+    public HttpURLConnection getConnection() throws RestException {
+    	ensureConnection();
         return mConnection;
     }
 
     public void head() throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_HEAD);
@@ -138,6 +150,7 @@ public class RestConnection {
     }
 
     public <T>T get(Class<T> clss) throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_GET);
@@ -155,6 +168,7 @@ public class RestConnection {
     }
 
     public <T>List<T> getList(Class<T> clss) throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_GET);
@@ -176,6 +190,7 @@ public class RestConnection {
     }
 
     public <T>T put(Class<T> clss, Object object) throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
@@ -197,6 +212,7 @@ public class RestConnection {
     }
 
     public <T>T post(Class<T> clss, Object object) throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
@@ -217,7 +233,8 @@ public class RestConnection {
         }
     }
 
-    public <T>T post(Class<T> clss, HashMap<String, String> params) throws RestException {
+    public <T>T post(Class<T> clss, Map<String, String> params) throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             String query = RestUtils.buildQuery(params, mOutgoingCharset);
@@ -244,6 +261,7 @@ public class RestConnection {
     }
 
     public <T>T post(Class<T> clss, MultipartFormWriter writer) throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             String boundary = Long.toHexString(System.currentTimeMillis());
@@ -268,6 +286,7 @@ public class RestConnection {
     }
 
     public <T>T delete(Class<T> clss) throws RestException {
+    	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_DELETE);
@@ -301,7 +320,37 @@ public class RestConnection {
     }
 
     public void disconnect() {
-        mConnection.disconnect();
+    	if(mConnection != null) {
+    		mConnection.disconnect();
+    	}
+    }
+    
+    private void ensureConnection() throws RestException {
+        if(mConnection == null) {
+            try {
+            	// Build a connection based on the values set in the Builder object
+            	RestProperties properties = mBuilder.mProperties;
+            	String authType = mBuilder.mAuthorizationType;
+                HttpURLConnection connection = (HttpURLConnection) new URL(mBuilder.createURL()).openConnection();
+                connection.setConnectTimeout(properties.getConnectTimeout());
+                connection.setReadTimeout(properties.getReadTimeout());
+                connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
+                if(properties.getUsername() != null && properties.getPassword() != null) {
+                    String credentials = properties.getUsername() + ":" + properties.getPassword();
+                    String authorization = authType + " " + Base64.encodeBytes(credentials.getBytes());
+                    connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
+                }
+                List<String> cookies = mBuilder.mCookies;
+                if(cookies != null) {
+                    for(String cookie : cookies) {
+                        connection.addRequestProperty(HEADER_COOKIE, cookie);
+                    }
+                }
+                mConnection = connection;
+            } catch (IOException e) {
+                throw new RestException(SC_UNKNOWN, e);
+            }
+        }
     }
     
     private void ensureNewConnection() {
@@ -331,18 +380,6 @@ public class RestConnection {
                 break;
             }
         }
-    }
-    
-    private void setContentType(String contentType) {
-        mContentType = contentType;
-    }
-    
-    private void setIncomingCharset(String charset) {
-        mIncomingCharset = charset;
-    }
-    
-    private void setOutgoingCharset(String charset) {
-        mOutgoingCharset = charset;
     }
     
     private boolean isResponseStreaming(Class<?> clss) {
@@ -459,12 +496,7 @@ public class RestConnection {
         }
         
         public Builder params(HashMap<String, String> params) {
-        	if(mParams == null) {
-        		mParams = params;
-        	}
-        	else {
-        		mParams.putAll(params);
-        	}
+        	mParams = params;
             return this;    
         }
         
@@ -481,42 +513,28 @@ public class RestConnection {
             return this;    
         }
         
-        public RestConnection build() throws RestException {
-            try {
-                if(mProperties.getUrl() == null || mProperties.getUrl().isEmpty()) {
-                    throw new MalformedURLException("You must call url(...) with a valid URL value!");
-                }
-                StringBuilder url = new StringBuilder(mProperties.getUrl());
-                if(mProperties.getPath() != null && !mProperties.getPath().isEmpty()) {
-                	url.append(PATH_SEPARATOR);
-                	url.append(mProperties.getPath());
-                }
-                if(mParams != null && !mParams.isEmpty()) {
-                	url.append(QUERY_SEPARATOR);
-                	url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
-                }
-                HttpURLConnection connection = (HttpURLConnection) new URL(url.toString()).openConnection();
-                connection.setConnectTimeout(mProperties.getConnectTimeout());
-                connection.setReadTimeout(mProperties.getReadTimeout());
-                connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
-                if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
-                    String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
-                    String authorization = mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
-                    connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
-                }
-                if(mCookies != null) {
-                    for(String cookie : mCookies) {
-                        connection.addRequestProperty(HEADER_COOKIE, cookie);
-                    }
-                }
-                RestConnection restConnection = new RestConnection(connection);
-                restConnection.setContentType(mContentType);
-                restConnection.setIncomingCharset(mIncomingCharset);
-                restConnection.setOutgoingCharset(mOutgoingCharset);
-                return restConnection;
-            } catch (IOException e) {
-                throw new RestException(SC_UNKNOWN, e);
+        public RestConnection build() {
+        	RestConnection connection = new RestConnection(this);
+        	connection.mContentType = mContentType;
+        	connection.mIncomingCharset = mIncomingCharset;
+        	connection.mOutgoingCharset = mOutgoingCharset;
+        	return connection;
+        }
+        
+        public String createURL() throws MalformedURLException, UnsupportedEncodingException {
+            if(mProperties.getUrl() == null || mProperties.getUrl().isEmpty()) {
+                throw new MalformedURLException("You must call url(...) with a valid URL value!");
             }
+            StringBuilder url = new StringBuilder(mProperties.getUrl());
+            if(mProperties.getPath() != null && !mProperties.getPath().isEmpty()) {
+            	url.append(PATH_SEPARATOR);
+            	url.append(mProperties.getPath());
+            }
+            if(mParams != null && !mParams.isEmpty()) {
+            	url.append(QUERY_SEPARATOR);
+            	url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
+            }
+            return url.toString();
         }
     }
 }
