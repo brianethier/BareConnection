@@ -167,7 +167,7 @@ public class RestConnection {
         }
     }
 
-    public <T>List<T> getList(Class<T> clss) throws RestException {
+    public <T>List<T> getReturnList(Class<T> clss) throws RestException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -211,6 +211,28 @@ public class RestConnection {
         }
     }
 
+    public <T>List<T> putReturnList(Class<T> clss, Object object) throws RestException {
+    	ensureConnection();
+        ensureNewConnection();
+        try {
+            String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
+            mConnection.setRequestMethod(METHOD_PUT);
+            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType); 
+            mConnection.setDoOutput(true);
+            write(mConnection.getOutputStream(), object);
+            checkResponseCode();
+            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+        }
+        catch(IOException e) {
+            throw new RestException(mResponseCode, e);
+        }
+        finally {
+            if(!isResponseStreaming(clss)) {
+                mConnection.disconnect();
+            }
+        }
+    }
+
     public <T>T post(Class<T> clss, Object object) throws RestException {
     	ensureConnection();
         ensureNewConnection();
@@ -222,6 +244,28 @@ public class RestConnection {
             write(mConnection.getOutputStream(), object);
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
+        }
+        catch(IOException e) {
+            throw new RestException(mResponseCode, e);
+        }
+        finally {
+            if(!isResponseStreaming(clss)) {
+                mConnection.disconnect();
+            }
+        }
+    }
+
+    public <T>List<T> postReturnList(Class<T> clss, Object object) throws RestException {
+    	ensureConnection();
+        ensureNewConnection();
+        try {
+            String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
+            mConnection.setRequestMethod(METHOD_POST);
+            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType); 
+            mConnection.setDoOutput(true);
+            write(mConnection.getOutputStream(), object);
+            checkResponseCode();
+            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
         }
         catch(IOException e) {
             throw new RestException(mResponseCode, e);
@@ -256,8 +300,35 @@ public class RestConnection {
         }
     }
 
+    public <T>List<T> postReturnList(Class<T> clss, Map<String, String> params) throws RestException {
+    	ensureConnection();
+        ensureNewConnection();
+        try {
+            String query = RestUtils.buildQuery(params, mOutgoingCharset);
+            String contentType = CONTENT_TYPE_FORM_URLENCODED + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
+            mConnection.setRequestMethod(METHOD_POST);
+            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType);
+            mConnection.setDoOutput(true);
+            write(mConnection.getOutputStream(), query);
+            checkResponseCode();
+            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+        }
+        catch(IOException e) {
+            throw new RestException(mResponseCode, e);
+        }
+        finally {
+            if(!isResponseStreaming(clss)) {
+                mConnection.disconnect();
+            }
+        }
+    }
+
     public <T>T post(Class<T> clss, List<Entity> entities) throws RestException {
         return post(clss, new DefaultMultipartFormWriter(entities));
+    }
+
+    public <T>List<T> postReturnList(Class<T> clss, List<Entity> entities) throws RestException {
+        return postReturnList(clss, new DefaultMultipartFormWriter(entities));
     }
 
     public <T>T post(Class<T> clss, MultipartFormWriter writer) throws RestException {
@@ -285,6 +356,31 @@ public class RestConnection {
         }
     }
 
+    public <T>List<T> postReturnList(Class<T> clss, MultipartFormWriter writer) throws RestException {
+    	ensureConnection();
+        ensureNewConnection();
+        try {
+            String boundary = Long.toHexString(System.currentTimeMillis());
+            String contentType = CONTENT_TYPE_MULTIPART_FORM + ";" + KEY_BOUNDARY + "=" + boundary;
+            mConnection.setRequestMethod(METHOD_POST);
+            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType);
+            mConnection.setDoOutput(true);
+            OutputStream out = mConnection.getOutputStream();
+            writer.onWrite(out, mOutgoingCharset, boundary);
+            out.flush();
+            checkResponseCode();
+            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+        }
+        catch(IOException e) {
+            throw new RestException(mResponseCode, e);
+        }
+        finally {
+            if(!isResponseStreaming(clss)) {
+                mConnection.disconnect();
+            }
+        }
+    }
+
     public <T>T delete(Class<T> clss) throws RestException {
     	ensureConnection();
         ensureNewConnection();
@@ -292,6 +388,24 @@ public class RestConnection {
             mConnection.setRequestMethod(METHOD_DELETE);
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
+        }
+        catch(IOException e) {
+            throw new RestException(mResponseCode, e);
+        }
+        finally {
+            if(!isResponseStreaming(clss)) {
+                mConnection.disconnect();
+            }
+        }
+    }
+
+    public <T>List<T> deleteReturnList(Class<T> clss) throws RestException {
+    	ensureConnection();
+        ensureNewConnection();
+        try {
+            mConnection.setRequestMethod(METHOD_DELETE);
+            checkResponseCode();
+            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
         }
         catch(IOException e) {
             throw new RestException(mResponseCode, e);
