@@ -641,7 +641,9 @@ public class RestConnection {
             }
             StringBuilder url = new StringBuilder(mProperties.getUrl());
             if(mProperties.getPath() != null && !mProperties.getPath().isEmpty()) {
-            	url.append(PATH_SEPARATOR);
+            	if(!mProperties.getUrl().endsWith(PATH_SEPARATOR) && !mProperties.getPath().startsWith(PATH_SEPARATOR)) {
+            		url.append(PATH_SEPARATOR);
+            	}
             	url.append(mProperties.getPath());
             }
             if(mParams != null && !mParams.isEmpty()) {
