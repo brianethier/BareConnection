@@ -1,4 +1,4 @@
-package com.barenode.bareconnection;
+package ca.barelabs.bareconnection;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -8,10 +8,10 @@ import java.io.PrintWriter;
 import java.net.URLConnection;
 import java.util.List;
 
-import com.barenode.bareconnection.Entity.BinaryFileEntity;
-import com.barenode.bareconnection.Entity.FileEntity;
-import com.barenode.bareconnection.Entity.StringEntity;
-import com.barenode.bareconnection.RestConnection.MultipartFormWriter;
+import ca.barelabs.bareconnection.Entity.BinaryFileEntity;
+import ca.barelabs.bareconnection.Entity.FileEntity;
+import ca.barelabs.bareconnection.Entity.StringEntity;
+import ca.barelabs.bareconnection.RestConnection.MultipartFormWriter;
 
 public class DefaultMultipartFormWriter implements MultipartFormWriter {
     

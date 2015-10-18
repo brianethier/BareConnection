@@ -1,4 +1,4 @@
-package com.barenode.bareconnection;
+package ca.barelabs.bareconnection;
 
 import java.io.File;
 
