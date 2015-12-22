@@ -109,11 +109,14 @@ public class RestConnection {
     }
 
 
+    private final RestProperties mProperties;
     private HttpURLConnection mConnection;
-    private Builder mBuilder;
+    private String mAuthorizationType = AUTHORIZATION_TYPE_BASIC;
     private String mContentType = CONTENT_TYPE_JSON;
     private String mIncomingCharset = DEFAULT_CHARSET;
     private String mOutgoingCharset = DEFAULT_CHARSET;
+    private HashMap<String, String> mParams;
+    private List<String> mCookies;
     private int mResponseCode = SC_UNKNOWN;
 
 
@@ -121,11 +124,12 @@ public class RestConnection {
         if(connection == null) {
             throw new IllegalStateException("A RestConnection must be called with a valid HttpURLConnection or use the Builder class!");
         }
+        mProperties = new RestProperties.Builder().build();
         mConnection = connection;
     }
 
-    private RestConnection(Builder builder) {
-        mBuilder = builder;
+    public RestConnection(RestProperties properties) {
+        mProperties = properties;
     }
 
 
@@ -417,6 +421,46 @@ public class RestConnection {
         }
     }
     
+    public String getAuthorizationType() {
+        return mAuthorizationType;
+    }
+    
+    public void setAuthorizationType(String authorizationType) {
+        mAuthorizationType = authorizationType;
+    }
+    
+    public String getContentType() {
+        return mContentType;
+    }
+    
+    public void setContentType(String contentType) {
+        mContentType = contentType;
+    }
+    
+    public String getIncomingCharset() {
+        return mIncomingCharset;
+    }
+    
+    public void setIncomingCharset(String incomingCharset) {
+        mIncomingCharset = incomingCharset;
+    }
+
+    public String getOutgoingCharset() {
+        return mOutgoingCharset;
+    }
+    
+    public void setOutgoingCharset(String outgoingCharset) {
+        mOutgoingCharset = outgoingCharset;
+    }
+    
+    public HashMap<String, String> getParams() {
+        return mParams;
+    }
+    
+    public void setParams(HashMap<String, String> params) {
+        mParams = params;
+    }
+    
     public List<String> getCookies() {
         if(mResponseCode == SC_UNKNOWN) {
             throw new IllegalStateException("A connection to the server needs to be made before retrieving cookies.");
@@ -427,6 +471,10 @@ public class RestConnection {
             cookies.add(cookie.split(";", 2)[0]);
         }
         return cookies;
+    }
+    
+    public void setCookies(List<String> cookies) {
+        mCookies = cookies;
     }
     
     public int getResponseCode() {
@@ -443,20 +491,17 @@ public class RestConnection {
         if(mConnection == null) {
             try {
             	// Build a connection based on the values set in the Builder object
-            	RestProperties properties = mBuilder.mProperties;
-            	String authType = mBuilder.mAuthorizationType;
-                HttpURLConnection connection = (HttpURLConnection) new URL(mBuilder.createURL()).openConnection();
-                connection.setConnectTimeout(properties.getConnectTimeout());
-                connection.setReadTimeout(properties.getReadTimeout());
+                HttpURLConnection connection = (HttpURLConnection) new URL(createURL()).openConnection();
+                connection.setConnectTimeout(mProperties.getConnectTimeout());
+                connection.setReadTimeout(mProperties.getReadTimeout());
                 connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
-                if(properties.getUsername() != null && properties.getPassword() != null) {
-                    String credentials = properties.getUsername() + ":" + properties.getPassword();
-                    String authorization = authType + " " + Base64.encodeBytes(credentials.getBytes());
+                if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
+                    String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
+                    String authorization = mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
                     connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
                 }
-                List<String> cookies = mBuilder.mCookies;
-                if(cookies != null) {
-                    for(String cookie : cookies) {
+                if(mCookies != null) {
+                    for(String cookie : mCookies) {
                         connection.addRequestProperty(HEADER_COOKIE, cookie);
                     }
                 }
@@ -542,11 +587,29 @@ public class RestConnection {
         }
     }
     
+    private String createURL() throws MalformedURLException, UnsupportedEncodingException {
+        if(mProperties.getUrl() == null || mProperties.getUrl().isEmpty()) {
+            throw new MalformedURLException("You must call url(...) with a valid URL value!");
+        }
+        StringBuilder url = new StringBuilder(mProperties.getUrl());
+        if(mProperties.getPath() != null && !mProperties.getPath().isEmpty()) {
+            if(!mProperties.getUrl().endsWith(PATH_SEPARATOR) && !mProperties.getPath().startsWith(PATH_SEPARATOR)) {
+                url.append(PATH_SEPARATOR);
+            }
+            url.append(mProperties.getPath());
+        }
+        if(mParams != null && !mParams.isEmpty()) {
+            url.append(QUERY_SEPARATOR);
+            url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
+        }
+        return url.toString();
+    }
+    
     
     
     public static final class Builder {
 
-        private RestProperties mProperties = new RestProperties();
+        private RestProperties.Builder mPropertiesBuilder = new RestProperties.Builder();
         private String mAuthorizationType = AUTHORIZATION_TYPE_BASIC;
         private String mContentType = CONTENT_TYPE_JSON;
         private String mIncomingCharset = DEFAULT_CHARSET;
@@ -555,37 +618,45 @@ public class RestConnection {
         private List<String> mCookies;
         
         public Builder url(String url) {
-            mProperties.url(url);
+            mPropertiesBuilder.url(url);
             return this;    
         }
         
         public Builder path(String path) {
-            mProperties.path(path);
+            mPropertiesBuilder.path(path);
             return this;    
         }
         
         public Builder username(String username) {
-            mProperties.username(username);
+            mPropertiesBuilder.username(username);
             return this;    
         }
         
         public Builder password(String password) {
-            mProperties.password(password);
+            mPropertiesBuilder.password(password);
             return this;    
         }
         
         public Builder connectTimeout(int connectTimeout) {
-            mProperties.connectTimeout(connectTimeout);
+            mPropertiesBuilder.connectTimeout(connectTimeout);
             return this;    
         }
         
         public Builder readTimeout(int readTimeout) {
-            mProperties.readTimeout(readTimeout);
+            mPropertiesBuilder.readTimeout(readTimeout);
             return this;    
         }
         
         public Builder properties(RestProperties properties) {
-            mProperties = properties == null ? new RestProperties() : properties;
+            if (properties != null) {
+                mPropertiesBuilder
+                    .url(properties.getUrl())
+                    .path(properties.getPath())
+                    .username(properties.getUsername())
+                    .password(properties.getPassword())
+                    .connectTimeout(properties.getConnectTimeout())
+                    .readTimeout(properties.getReadTimeout());
+            }
             return this;    
         }
         
@@ -628,29 +699,14 @@ public class RestConnection {
         }
         
         public RestConnection build() {
-        	RestConnection connection = new RestConnection(this);
+        	RestConnection connection = new RestConnection(mPropertiesBuilder.build());
+        	connection.mAuthorizationType = mAuthorizationType;
         	connection.mContentType = mContentType;
         	connection.mIncomingCharset = mIncomingCharset;
         	connection.mOutgoingCharset = mOutgoingCharset;
+        	connection.mParams = mParams;
+        	connection.mCookies = mCookies;
         	return connection;
-        }
-        
-        public String createURL() throws MalformedURLException, UnsupportedEncodingException {
-            if(mProperties.getUrl() == null || mProperties.getUrl().isEmpty()) {
-                throw new MalformedURLException("You must call url(...) with a valid URL value!");
-            }
-            StringBuilder url = new StringBuilder(mProperties.getUrl());
-            if(mProperties.getPath() != null && !mProperties.getPath().isEmpty()) {
-            	if(!mProperties.getUrl().endsWith(PATH_SEPARATOR) && !mProperties.getPath().startsWith(PATH_SEPARATOR)) {
-            		url.append(PATH_SEPARATOR);
-            	}
-            	url.append(mProperties.getPath());
-            }
-            if(mParams != null && !mParams.isEmpty()) {
-            	url.append(QUERY_SEPARATOR);
-            	url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
-            }
-            return url.toString();
         }
     }
 }

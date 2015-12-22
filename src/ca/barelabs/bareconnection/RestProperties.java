@@ -4,14 +4,22 @@ package ca.barelabs.bareconnection;
 
 public class RestProperties {
 
-    private volatile String mUrl;
-    private volatile String mPath;
-    private volatile String mUsername;
-    private volatile String mPassword;
-    private volatile int mConnectTimeout = RestConnection.DEFAULT_CONNECT_TIMEOUT;
-    private volatile int mReadTimeout = RestConnection.DEFAULT_SOCKET_TIMEOUT;
+    private final String mUrl;
+    private final String mPath;
+    private final String mUsername;
+    private final String mPassword;
+    private final int mConnectTimeout;
+    private final int mReadTimeout;
     
-    
+    public RestProperties(String url, String path, String username, String password, int connectTimeout, int readTimeout) {
+        mUrl = url;
+        mPath = path;
+        mUsername = username;
+        mPassword = password;
+        mConnectTimeout = connectTimeout;
+        mReadTimeout = readTimeout;
+    }
+
     public String getUrl() {
         return mUrl;
     }
@@ -36,34 +44,50 @@ public class RestProperties {
         return mReadTimeout;
     }
     
-    public RestProperties url(String url) {
-        mUrl = url;
-        return this;    
-    }
     
-    public RestProperties path(String path) {
-        mPath = path;
-        return this;    
-    }
-    
-    public RestProperties username(String username) {
-        mUsername = username;
-        return this;    
-    }
-    
-    public RestProperties password(String password) {
-        mPassword = password;
-        return this;    
-    }
-    
-    public RestProperties connectTimeout(int connectTimeout) {
-        mConnectTimeout = connectTimeout;
-        return this;    
-    }
-    
-    public RestProperties readTimeout(int readTimeout) {
-        mReadTimeout = readTimeout;
-        return this;    
+    public static class Builder {
+        
+        private String mUrl;
+        private String mPath;
+        private String mUsername;
+        private String mPassword;
+        private int mConnectTimeout = RestConnection.DEFAULT_CONNECT_TIMEOUT;
+        private int mReadTimeout = RestConnection.DEFAULT_SOCKET_TIMEOUT;
+
+        
+        public Builder url(String url) {
+            mUrl = url;
+            return this;    
+        }
+        
+        public Builder path(String path) {
+            mPath = path;
+            return this;    
+        }
+        
+        public Builder username(String username) {
+            mUsername = username;
+            return this;    
+        }
+        
+        public Builder password(String password) {
+            mPassword = password;
+            return this;    
+        }
+        
+        public Builder connectTimeout(int connectTimeout) {
+            mConnectTimeout = connectTimeout;
+            return this;    
+        }
+        
+        public Builder readTimeout(int readTimeout) {
+            mReadTimeout = readTimeout;
+            return this;    
+        }
+        
+        public RestProperties build() {
+            return new RestProperties(mUrl, mPath, mUsername, mPassword, mConnectTimeout, mReadTimeout);
+        }
     }
 }
 
