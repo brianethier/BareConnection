@@ -133,67 +133,55 @@ public class RestConnection {
     }
 
 
-    public HttpURLConnection getConnection() throws RestException {
+    public HttpURLConnection getConnection() throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         return mConnection;
     }
 
-    public void head() throws RestException {
+    public void head() throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_HEAD);
             checkResponseCode();
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             mConnection.disconnect();
         }
     }
 
-    public <T>T get(Class<T> clss) throws RestException {
+    public <T>T get(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_GET);
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>List<T> getReturnList(Class<T> clss) throws RestException {
+    public <T>List<T> getReturnList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_GET);
             checkResponseCode();
             return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public void put() throws RestException {
+    public void put() throws MalformedURLException, UnsupportedEncodingException, IOException {
         put(String.class, null);
     }
 
-    public <T>T put(Class<T> clss, Object object) throws RestException {
+    public <T>T put(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -204,18 +192,14 @@ public class RestConnection {
             write(mConnection.getOutputStream(), object);
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>List<T> putReturnList(Class<T> clss, Object object) throws RestException {
+    public <T>List<T> putReturnList(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -226,18 +210,14 @@ public class RestConnection {
             write(mConnection.getOutputStream(), object);
             checkResponseCode();
             return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>T post(Class<T> clss, Object object) throws RestException {
+    public <T>T post(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -248,18 +228,14 @@ public class RestConnection {
             write(mConnection.getOutputStream(), object);
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, Object object) throws RestException {
+    public <T>List<T> postReturnList(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -270,18 +246,14 @@ public class RestConnection {
             write(mConnection.getOutputStream(), object);
             checkResponseCode();
             return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>T post(Class<T> clss, Map<String, String> params) throws RestException {
+    public <T>T post(Class<T> clss, Map<String, String> params) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -293,18 +265,14 @@ public class RestConnection {
             write(mConnection.getOutputStream(), query);
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, Map<String, String> params) throws RestException {
+    public <T>List<T> postReturnList(Class<T> clss, Map<String, String> params) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -316,26 +284,22 @@ public class RestConnection {
             write(mConnection.getOutputStream(), query);
             checkResponseCode();
             return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>T post(Class<T> clss, List<Entity> entities) throws RestException {
+    public <T>T post(Class<T> clss, List<Entity> entities) throws MalformedURLException, UnsupportedEncodingException, IOException {
         return post(clss, new DefaultMultipartFormWriter(entities));
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, List<Entity> entities) throws RestException {
+    public <T>List<T> postReturnList(Class<T> clss, List<Entity> entities) throws MalformedURLException, UnsupportedEncodingException, IOException {
         return postReturnList(clss, new DefaultMultipartFormWriter(entities));
     }
 
-    public <T>T post(Class<T> clss, MultipartFormWriter writer) throws RestException {
+    public <T>T post(Class<T> clss, MultipartFormWriter writer) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -349,18 +313,14 @@ public class RestConnection {
             out.flush();
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, MultipartFormWriter writer) throws RestException {
+    public <T>List<T> postReturnList(Class<T> clss, MultipartFormWriter writer) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
@@ -374,47 +334,35 @@ public class RestConnection {
             out.flush();
             checkResponseCode();
             return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>T delete(Class<T> clss) throws RestException {
+    public <T>T delete(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_DELETE);
             checkResponseCode();
             return read(mConnection.getInputStream(), clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
         }
     }
 
-    public <T>List<T> deleteReturnList(Class<T> clss) throws RestException {
+    public <T>List<T> deleteReturnList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
     	ensureConnection();
         ensureNewConnection();
         try {
             mConnection.setRequestMethod(METHOD_DELETE);
             checkResponseCode();
             return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
-        }
-        catch(IOException e) {
-            throw new RestException(mResponseCode, e);
-        }
-        finally {
+        } finally {
             if(!isResponseStreaming(clss)) {
                 mConnection.disconnect();
             }
@@ -487,28 +435,24 @@ public class RestConnection {
     	}
     }
     
-    private void ensureConnection() throws RestException {
+    private void ensureConnection() throws MalformedURLException, UnsupportedEncodingException, IOException {
         if(mConnection == null) {
-            try {
-            	// Build a connection based on the values set in the Builder object
-                HttpURLConnection connection = (HttpURLConnection) new URL(createURL()).openConnection();
-                connection.setConnectTimeout(mProperties.getConnectTimeout());
-                connection.setReadTimeout(mProperties.getReadTimeout());
-                connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
-                if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
-                    String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
-                    String authorization = mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
-                    connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
-                }
-                if(mCookies != null) {
-                    for(String cookie : mCookies) {
-                        connection.addRequestProperty(HEADER_COOKIE, cookie);
-                    }
-                }
-                mConnection = connection;
-            } catch (IOException e) {
-                throw new RestException(SC_UNKNOWN, e);
+            // Build a connection based on the values set in the Builder object
+            HttpURLConnection connection = (HttpURLConnection) new URL(createURL()).openConnection();
+            connection.setConnectTimeout(mProperties.getConnectTimeout());
+            connection.setReadTimeout(mProperties.getReadTimeout());
+            connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
+            if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
+                String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
+                String authorization = mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
+                connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
             }
+            if(mCookies != null) {
+                for(String cookie : mCookies) {
+                    connection.addRequestProperty(HEADER_COOKIE, cookie);
+                }
+            }
+            mConnection = connection;
         }
     }
     
@@ -518,17 +462,13 @@ public class RestConnection {
         }
     }
     
-    private void checkResponseCode() throws RestException {
-        try {
-            mResponseCode = mConnection.getResponseCode();
-            if(mResponseCode / 100 != 2) {
-                String responseError = RestUtils.readString(mConnection.getErrorStream(), mIncomingCharset);
-                throw new RestException(mResponseCode, responseError);
-            }
-            updateIncomingCharset();
-        } catch (IOException e) {
-            throw new RestException(mResponseCode, e);
+    private void checkResponseCode() throws IOException {
+        mResponseCode = mConnection.getResponseCode();
+        if(mResponseCode / 100 != 2) {
+            String responseError = RestUtils.readString(mConnection.getErrorStream(), mIncomingCharset);
+            throw new RestException(mResponseCode, responseError);
         }
+        updateIncomingCharset();
     }
     
     private void updateIncomingCharset() {

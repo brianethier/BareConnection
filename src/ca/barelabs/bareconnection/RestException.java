@@ -1,8 +1,10 @@
 package ca.barelabs.bareconnection;
 
+import java.io.IOException;
+
 
 @SuppressWarnings("serial")
-public class RestException extends Exception {
+public class RestException extends IOException {
 
     private final int mStatusCode;
     private final String mErrorResponse;
