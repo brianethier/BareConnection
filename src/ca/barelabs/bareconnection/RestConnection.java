@@ -16,6 +16,7 @@
 package ca.barelabs.bareconnection;
 
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -29,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.gson.JsonParseException;
 import com.google.gson.stream.JsonReader;
 
 public class RestConnection {
@@ -105,276 +107,177 @@ public class RestConnection {
     public static final int DEFAULT_SOCKET_TIMEOUT = 10000;
     
     public interface MultipartFormWriter {
-        public void onWrite(OutputStream out, String charset, String boundary) throws IOException;
+        void onWrite(OutputStream out, String charset, String boundary) throws IOException;
     }
 
 
-    private final RestProperties mProperties;
-    private HttpURLConnection mConnection;
-    private String mAuthorizationType = AUTHORIZATION_TYPE_BASIC;
+    private final HttpURLConnectionFactory mFactory;
+    private RestResponse mResponse;
     private String mContentType = CONTENT_TYPE_JSON;
     private String mIncomingCharset = DEFAULT_CHARSET;
     private String mOutgoingCharset = DEFAULT_CHARSET;
-    private HashMap<String, String> mParams;
-    private List<String> mCookies;
-    private int mResponseCode = SC_UNKNOWN;
 
 
-    public RestConnection(HttpURLConnection connection) {
-        if(connection == null) {
-            throw new IllegalStateException("A RestConnection must be called with a valid HttpURLConnection or use the Builder class!");
+    public RestConnection(HttpURLConnectionFactory factory) {
+        if (factory == null) {
+            throw new IllegalStateException("RestConnection must be created with an HttpURLConnectionFactory. Also see RestConnection.Builder");
         }
-        mProperties = new RestProperties.Builder().build();
-        mConnection = connection;
+        mFactory = factory;
     }
 
-    public RestConnection(RestProperties properties) {
-        mProperties = properties;
-    }
-
-
-    public HttpURLConnection getConnection() throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        return mConnection;
-    }
 
     public void head() throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
         ensureNewConnection();
+        HttpURLConnection connection = mFactory.createHttpURLConnection(METHOD_HEAD);
         try {
-            mConnection.setRequestMethod(METHOD_HEAD);
-            checkResponseCode();
+            checkResponse(connection);
         } finally {
-            mConnection.disconnect();
+            disconnect();
         }
     }
 
-    public <T>T get(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public void get() throws MalformedURLException, UnsupportedEncodingException, IOException {
+        getDownloadAs(null);
+    }
+
+    public <T> T getDownloadAs(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            mConnection.setRequestMethod(METHOD_GET);
-            checkResponseCode();
-            return read(mConnection.getInputStream(), clss);
+            return read(getDownloadAsStream(), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>List<T> getReturnList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public <T> List<T> getDownloadAsList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            mConnection.setRequestMethod(METHOD_GET);
-            checkResponseCode();
-            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+            return readList(getDownloadAsStream(), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
+    }
+
+    public InputStream getDownloadAsStream() throws MalformedURLException, UnsupportedEncodingException, IOException {
+        ensureNewConnection();
+        HttpURLConnection connection = mFactory.createHttpURLConnection(METHOD_GET);
+        checkResponse(connection);
+        return connection.getInputStream();
     }
 
     public void put() throws MalformedURLException, UnsupportedEncodingException, IOException {
-        put(String.class, null);
+        put(null);
     }
 
-    public <T>T put(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public void put(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+        putDownloadAs(object, null);
+    }
+
+    public <T> T putDownloadAs(Object object, Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
-            mConnection.setRequestMethod(METHOD_PUT);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType); 
-            mConnection.setDoOutput(true);
-            write(mConnection.getOutputStream(), object);
-            checkResponseCode();
-            return read(mConnection.getInputStream(), clss);
+            return read(putDownloadAsStream(object), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>List<T> putReturnList(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public <T> List<T> putDownloadAsList(Object object, Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
-            mConnection.setRequestMethod(METHOD_PUT);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType); 
-            mConnection.setDoOutput(true);
-            write(mConnection.getOutputStream(), object);
-            checkResponseCode();
-            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+            return readList(putDownloadAsStream(object), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>T post(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
+    public InputStream putDownloadAsStream(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureNewConnection();
+        String boundary = Long.toHexString(System.currentTimeMillis());
+        HttpURLConnection connection = mFactory.createHttpURLConnection(METHOD_PUT);
+        connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary)); 
+        connection.setDoOutput(true);
+        write(connection.getOutputStream(), object, boundary);
+        checkResponse(connection);
+        return connection.getInputStream();
+    }
+
+    public void post() throws MalformedURLException, UnsupportedEncodingException, IOException {
+        post(null);
+    }
+
+    public void post(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+        postDownloadAs(object, null);
+    }
+
+    public <T> T postDownloadAs(Object object, Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
-            mConnection.setRequestMethod(METHOD_POST);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType); 
-            mConnection.setDoOutput(true);
-            write(mConnection.getOutputStream(), object);
-            checkResponseCode();
-            return read(mConnection.getInputStream(), clss);
+            return read(postDownloadAsStream(object), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public <T> List<T> postDownloadAsList(Object object, Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String contentType = mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
-            mConnection.setRequestMethod(METHOD_POST);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType); 
-            mConnection.setDoOutput(true);
-            write(mConnection.getOutputStream(), object);
-            checkResponseCode();
-            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+            return readList(postDownloadAsStream(object), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>T post(Class<T> clss, Map<String, String> params) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public <T> T postDownloadAs(List<Entity> entities, Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String query = RestUtils.buildQuery(params, mOutgoingCharset);
-            String contentType = CONTENT_TYPE_FORM_URLENCODED + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
-            mConnection.setRequestMethod(METHOD_POST);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType);
-            mConnection.setDoOutput(true);
-            write(mConnection.getOutputStream(), query);
-            checkResponseCode();
-            return read(mConnection.getInputStream(), clss);
+            return read(postDownloadAsStream(entities), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, Map<String, String> params) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public <T> List<T> postDownloadAsList(List<Entity> entities, Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String query = RestUtils.buildQuery(params, mOutgoingCharset);
-            String contentType = CONTENT_TYPE_FORM_URLENCODED + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
-            mConnection.setRequestMethod(METHOD_POST);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType);
-            mConnection.setDoOutput(true);
-            write(mConnection.getOutputStream(), query);
-            checkResponseCode();
-            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+            return readList(postDownloadAsStream(entities), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>T post(Class<T> clss, List<Entity> entities) throws MalformedURLException, UnsupportedEncodingException, IOException {
-        return post(clss, new DefaultMultipartFormWriter(entities));
+    public InputStream postDownloadAsStream(List<Entity> entities) throws MalformedURLException, UnsupportedEncodingException, IOException {
+        return postDownloadAsStream(new DefaultMultipartFormWriter(entities));        
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, List<Entity> entities) throws MalformedURLException, UnsupportedEncodingException, IOException {
-        return postReturnList(clss, new DefaultMultipartFormWriter(entities));
-    }
-
-    public <T>T post(Class<T> clss, MultipartFormWriter writer) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
+    public InputStream postDownloadAsStream(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureNewConnection();
+        String boundary = Long.toHexString(System.currentTimeMillis());
+        HttpURLConnection connection = mFactory.createHttpURLConnection(METHOD_POST);
+        connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary)); 
+        connection.setDoOutput(true);
+        write(connection.getOutputStream(), object, boundary);
+        checkResponse(connection);
+        return connection.getInputStream();        
+    }
+
+    public void delete() throws MalformedURLException, UnsupportedEncodingException, IOException {
+        deleteDownloadAs(null);
+    }
+
+    public <T> T deleteDownloadAs(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String boundary = Long.toHexString(System.currentTimeMillis());
-            String contentType = CONTENT_TYPE_MULTIPART_FORM + ";" + KEY_BOUNDARY + "=" + boundary;
-            mConnection.setRequestMethod(METHOD_POST);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType);
-            mConnection.setDoOutput(true);
-            OutputStream out = mConnection.getOutputStream();
-            writer.onWrite(out, mOutgoingCharset, boundary);
-            out.flush();
-            checkResponseCode();
-            return read(mConnection.getInputStream(), clss);
+            return read(deleteDownloadAsStream(), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>List<T> postReturnList(Class<T> clss, MultipartFormWriter writer) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
+    public <T> List<T> deleteDownloadAsList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         try {
-            String boundary = Long.toHexString(System.currentTimeMillis());
-            String contentType = CONTENT_TYPE_MULTIPART_FORM + ";" + KEY_BOUNDARY + "=" + boundary;
-            mConnection.setRequestMethod(METHOD_POST);
-            mConnection.setRequestProperty(HEADER_CONTENT_TYPE, contentType);
-            mConnection.setDoOutput(true);
-            OutputStream out = mConnection.getOutputStream();
-            writer.onWrite(out, mOutgoingCharset, boundary);
-            out.flush();
-            checkResponseCode();
-            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
+            return readList(deleteDownloadAsStream(), clss);
         } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
+            disconnect();
         }
     }
 
-    public <T>T delete(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
+    public InputStream deleteDownloadAsStream() throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureNewConnection();
-        try {
-            mConnection.setRequestMethod(METHOD_DELETE);
-            checkResponseCode();
-            return read(mConnection.getInputStream(), clss);
-        } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
-        }
-    }
-
-    public <T>List<T> deleteReturnList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
-    	ensureConnection();
-        ensureNewConnection();
-        try {
-            mConnection.setRequestMethod(METHOD_DELETE);
-            checkResponseCode();
-            return RestUtils.fromJsonToList(mConnection.getInputStream(), mIncomingCharset, clss);
-        } finally {
-            if(!isResponseStreaming(clss)) {
-                mConnection.disconnect();
-            }
-        }
-    }
-    
-    public String getAuthorizationType() {
-        return mAuthorizationType;
-    }
-    
-    public void setAuthorizationType(String authorizationType) {
-        mAuthorizationType = authorizationType;
+        HttpURLConnection connection = mFactory.createHttpURLConnection(METHOD_DELETE);
+        checkResponse(connection);
+        return connection.getInputStream();
     }
     
     public String getContentType() {
@@ -400,126 +303,121 @@ public class RestConnection {
     public void setOutgoingCharset(String outgoingCharset) {
         mOutgoingCharset = outgoingCharset;
     }
-    
-    public HashMap<String, String> getParams() {
-        return mParams;
+
+    public int getResponseCode() {
+        return mResponse == null ? SC_UNKNOWN : mResponse.getResponseCode();
+    }
+
+    public HttpURLConnection getResponseConnection() {
+        if (mResponse == null) {
+            throw new IllegalStateException("One of the method calls must be made before you can access the response connection");
+        }
+        return mResponse.getConnection();
     }
     
-    public void setParams(HashMap<String, String> params) {
-        mParams = params;
-    }
-    
-    public List<String> getCookies() {
-        if(mResponseCode == SC_UNKNOWN) {
+    public List<String> getResponseCookies() {
+        if (mResponse == null || mResponse.getResponseCode() == SC_UNKNOWN) {
             throw new IllegalStateException("A connection to the server needs to be made before retrieving cookies.");
         }
         ArrayList<String> cookies = new ArrayList<String>();
-        List<String> incomingCookies = mConnection.getHeaderFields().get(HEADER_SET_COOKIE);
-        for(String cookie : incomingCookies) {
+        List<String> incomingCookies = mResponse.getConnection().getHeaderFields().get(HEADER_SET_COOKIE);
+        for (String cookie : incomingCookies) {
             cookies.add(cookie.split(";", 2)[0]);
         }
         return cookies;
     }
-    
-    public void setCookies(List<String> cookies) {
-        mCookies = cookies;
-    }
-    
-    public int getResponseCode() {
-        return mResponseCode;
-    }
 
     public void disconnect() {
-    	if(mConnection != null) {
-    		mConnection.disconnect();
-    	}
-    }
-    
-    private void ensureConnection() throws MalformedURLException, UnsupportedEncodingException, IOException {
-        if(mConnection == null) {
-            // Build a connection based on the values set in the Builder object
-            HttpURLConnection connection = (HttpURLConnection) new URL(createURL()).openConnection();
-            connection.setConnectTimeout(mProperties.getConnectTimeout());
-            connection.setReadTimeout(mProperties.getReadTimeout());
-            connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
-            if(mProperties.getUsername() != null && mProperties.getPassword() != null) {
-                String credentials = mProperties.getUsername() + ":" + mProperties.getPassword();
-                String authorization = mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
-                connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
-            }
-            if(mCookies != null) {
-                for(String cookie : mCookies) {
-                    connection.addRequestProperty(HEADER_COOKIE, cookie);
-                }
-            }
-            mConnection = connection;
+        if (mResponse != null) {
+            mResponse.getConnection().disconnect();
         }
     }
     
     private void ensureNewConnection() {
-        if(mResponseCode != SC_UNKNOWN) {
+        if (mResponse != null) {
             throw new IllegalStateException("A RestConnection could only be used once!");
         }
     }
     
-    private void checkResponseCode() throws IOException {
-        mResponseCode = mConnection.getResponseCode();
-        if(mResponseCode / 100 != 2) {
-            String responseError = RestUtils.readString(mConnection.getErrorStream(), mIncomingCharset);
-            throw new RestException(mResponseCode, responseError);
+    private void checkResponse(HttpURLConnection connection) throws IOException {
+        int responseCode = connection.getResponseCode();
+        mResponse = new RestResponse(connection, responseCode);
+        if (responseCode / 100 != 2) {
+            String responseError = RestUtils.readString(connection.getErrorStream(), mIncomingCharset);
+            throw new RestException(responseCode, responseError);
         }
-        updateIncomingCharset();
-    }
-    
-    private void updateIncomingCharset() {
-        String contentType = mConnection.getHeaderField(HEADER_CONTENT_TYPE);
-        for(String param : contentType.replace(" ", "").split(";")) {
-            if(param.startsWith(KEY_CHARSET + "=")) {
+        String contentType = connection.getHeaderField(HEADER_CONTENT_TYPE);
+        for (String param : contentType.replace(" ", "").split(";")) {
+            if (param.startsWith(KEY_CHARSET + "=")) {
                 mIncomingCharset = param.split("=", 2)[1];
                 break;
             }
         }
     }
     
-    private boolean isResponseStreaming(Class<?> clss) {
-        if(clss.isAssignableFrom(InputStream.class)) {
-            return true;
+    private String encodeContentType(Object object, String boundary) {
+        if (object instanceof Map) {
+            return CONTENT_TYPE_FORM_URLENCODED + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
+        } else if (object instanceof MultipartFormWriter) {
+            return CONTENT_TYPE_MULTIPART_FORM + ";" + KEY_BOUNDARY + "=" + boundary;
+        } else {
+            return mContentType + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
         }
-        if(clss.isAssignableFrom(JsonReader.class)) {
-            return true;
+    }
+    
+    private <T> T read(InputStream in, Class<T> clss) throws IOException {
+        try {
+            if (clss != null) {
+                return RestUtils.fromJson(in, mIncomingCharset, clss);
+            }
+            return null;
+        } finally {
+            RestUtils.closeQuietly(in);
         }
-        return false;
     }
     
     @SuppressWarnings("unchecked")
-    private <T> T read(InputStream in, Class<T> clss) throws IOException {
-        if(clss.isAssignableFrom(InputStream.class)) {
-            return (T) in;
-        }
-        else if(clss.isAssignableFrom(JsonReader.class)) {
-            return (T) new JsonReader(new InputStreamReader(in, mIncomingCharset));
-        }
-        else if(clss.isAssignableFrom(String.class)) {
-            return (T) RestUtils.readString(in, mIncomingCharset);
-        }
-        else {
-            return RestUtils.fromJson(in, mIncomingCharset, clss);
+    private <T> List<T> readList(InputStream in, Class<T> clss) throws IOException {
+        try {
+            List<T> list = new ArrayList<T>();
+            if (clss != null) {
+                JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), mIncomingCharset));
+                reader.beginArray();
+                while (reader.hasNext()) {
+                    list.add((T) RestUtils.fromJson(reader, clss));
+                }
+                reader.endArray();
+                reader.close();
+            }
+            return list;
+        } catch(JsonParseException e) {
+            throw new IOException(e);
+        } finally {
+            RestUtils.closeQuietly(in);
         }
     }
 
-    private void write(OutputStream out, Object object) throws IOException {
-        if(object instanceof InputStream) {
+    private void write(OutputStream out, Object object, String boundary) throws IOException {
+        if (object instanceof InputStream) {
             RestUtils.copy((InputStream) object, out);
             out.flush();
             out.close();
-        }
-        else if(object instanceof String) {
+        } else if (object instanceof String) {
             String data = (String) object;
             out.write(data.getBytes(mOutgoingCharset));
             out.flush();
             out.close();
-        }
-        else if(object != null) {
+        } else if (object instanceof Map) {
+            String query = RestUtils.buildQuery((Map<?,?>) object, mOutgoingCharset);
+            out.write(query.getBytes(mOutgoingCharset));
+            out.flush();
+            out.close();
+        } else if (object instanceof MultipartFormWriter) {
+            MultipartFormWriter writer = (MultipartFormWriter) object;
+            writer.onWrite(out, mOutgoingCharset, boundary);
+            out.flush();
+            out.close();
+        } else if (object != null) {
             String json = RestUtils.toJson(object);
             out.write(json.getBytes(mOutgoingCharset));
             out.flush();
@@ -527,27 +425,12 @@ public class RestConnection {
         }
     }
     
-    private String createURL() throws MalformedURLException, UnsupportedEncodingException {
-        if(mProperties.getUrl() == null || mProperties.getUrl().isEmpty()) {
-            throw new MalformedURLException("You must call url(...) with a valid URL value!");
-        }
-        StringBuilder url = new StringBuilder(mProperties.getUrl());
-        if(mProperties.getPath() != null && !mProperties.getPath().isEmpty()) {
-            if(!mProperties.getUrl().endsWith(PATH_SEPARATOR) && !mProperties.getPath().startsWith(PATH_SEPARATOR)) {
-                url.append(PATH_SEPARATOR);
-            }
-            url.append(mProperties.getPath());
-        }
-        if(mParams != null && !mParams.isEmpty()) {
-            url.append(QUERY_SEPARATOR);
-            url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
-        }
-        return url.toString();
-    }
-    
-    
     
     public static final class Builder {
+
+        public interface OnPrepareConnectionListener {
+            void onPrepareConnection(HttpURLConnection connection);
+        }
 
         private RestProperties.Builder mPropertiesBuilder = new RestProperties.Builder();
         private String mAuthorizationType = AUTHORIZATION_TYPE_BASIC;
@@ -556,6 +439,12 @@ public class RestConnection {
         private String mOutgoingCharset = DEFAULT_CHARSET;
         private HashMap<String, String> mParams;
         private List<String> mCookies;
+        private OnPrepareConnectionListener mListener;        
+        
+        public Builder listener(OnPrepareConnectionListener listener) {
+            mListener = listener;
+            return this;    
+        }
         
         public Builder url(String url) {
             mPropertiesBuilder.url(url);
@@ -639,14 +528,54 @@ public class RestConnection {
         }
         
         public RestConnection build() {
-        	RestConnection connection = new RestConnection(mPropertiesBuilder.build());
-        	connection.mAuthorizationType = mAuthorizationType;
+            final RestProperties properties = mPropertiesBuilder.build();
+        	RestConnection connection = new RestConnection(new HttpURLConnectionFactory() {
+                @Override
+                public HttpURLConnection createHttpURLConnection(String method) throws MalformedURLException, UnsupportedEncodingException, IOException {
+                    HttpURLConnection connection = (HttpURLConnection) new URL(createURL(properties)).openConnection();
+                    connection.setRequestMethod(method);
+                    connection.setConnectTimeout(properties.getConnectTimeout());
+                    connection.setReadTimeout(properties.getReadTimeout());
+                    connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
+                    if (properties.getUsername() != null && properties.getPassword() != null) {
+                        String credentials = properties.getUsername() + ":" + properties.getPassword();
+                        String authorization = mAuthorizationType + " " + Base64.encodeBytes(credentials.getBytes());
+                        connection.setRequestProperty(HEADER_AUTHORIZATION, authorization);
+                    }
+                    if (mCookies != null) {
+                        for (String cookie : mCookies) {
+                            connection.addRequestProperty(HEADER_COOKIE, cookie);
+                        }
+                    }
+                    if (mListener != null) {
+                        mListener.onPrepareConnection(connection);
+                    }
+                    return connection;
+                }
+        	    
+        	});
         	connection.mContentType = mContentType;
         	connection.mIncomingCharset = mIncomingCharset;
         	connection.mOutgoingCharset = mOutgoingCharset;
-        	connection.mParams = mParams;
-        	connection.mCookies = mCookies;
         	return connection;
+        }
+        
+        private String createURL(RestProperties properties) throws MalformedURLException, UnsupportedEncodingException {
+            if (properties.getUrl() == null || properties.getUrl().isEmpty()) {
+                throw new MalformedURLException("You must call url(...) with a valid URL value!");
+            }
+            StringBuilder url = new StringBuilder(properties.getUrl());
+            if (properties.getPath() != null && !properties.getPath().isEmpty()) {
+                if (!properties.getUrl().endsWith(PATH_SEPARATOR) && !properties.getPath().startsWith(PATH_SEPARATOR)) {
+                    url.append(PATH_SEPARATOR);
+                }
+                url.append(properties.getPath());
+            }
+            if (mParams != null && !mParams.isEmpty()) {
+                url.append(QUERY_SEPARATOR);
+                url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
+            }
+            return url.toString();
         }
     }
 }

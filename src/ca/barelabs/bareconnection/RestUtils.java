@@ -1,18 +1,17 @@
 package ca.barelabs.bareconnection;
 
 import java.io.BufferedInputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.Map.Entry;
+import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
@@ -25,16 +24,16 @@ public class RestUtils {
     }
     
     
-    public static String buildQuery(Map<String, String> params, String charset) throws UnsupportedEncodingException {
+    public static String buildQuery(Map<?, ?> params, String charset) throws UnsupportedEncodingException {
         StringBuilder sb = new StringBuilder();
         if(params != null) {
-            Iterator<Entry<String, String>> iterator = params.entrySet().iterator();
-            while(iterator.hasNext()) {
-                Entry<String, String> entry = iterator.next();
-                sb.append(entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), charset));
-                if(iterator.hasNext()) {
+            Set<?> keySet = params.keySet();
+            for (Object key : keySet) {
+                if (sb.length() > 0) {
                     sb.append("&");
                 }
+                Object value = params.get(key);
+                sb.append(key + "=" + URLEncoder.encode(value.toString(), charset));
             }
         }
         return sb.toString();
@@ -60,47 +59,20 @@ public class RestUtils {
         return json == null ? null : new Gson().fromJson(json, clss);
     }
 
-    public static <T> T fromJson(InputStream in, Class<T> clss) throws IOException {
-        return fromJson(in, RestConnection.DEFAULT_CHARSET, clss);
+    public static <T> T fromJson(InputStream in, Type type) throws IOException {
+        return fromJson(in, RestConnection.DEFAULT_CHARSET, type);
     }
 
-    public static <T> T fromJson(InputStream in, String charset, Class<T> clss) throws IOException {
+    public static <T> T fromJson(InputStream in, String charset, Type type) throws IOException {
         JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
-        return fromJson(reader, clss);
+        return fromJson(reader, type);
     }
 
-    public static <T> T fromJson(JsonReader reader, Class<T> clss) throws IOException {
+    public static <T> T fromJson(JsonReader reader, Type type) throws IOException {
         try {
-            T object = new Gson().fromJson(reader, clss);
+            T object = new Gson().fromJson(reader, type);
             reader.close();
             return object;
-        }
-        catch(JsonParseException e) {
-            throw new IOException(e);
-        }
-    }
-    
-    public static <T> List<T> fromJsonToList(InputStream in, Class<T> clss) throws IOException {
-        return fromJsonToList(in, RestConnection.DEFAULT_CHARSET, clss);
-    }
-    
-    public static <T> List<T> fromJsonToList(InputStream in, String charset, Class<T> clss) throws IOException {
-        JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(in), charset));
-        return fromJsonToList(reader, clss);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> List<T> fromJsonToList(JsonReader reader, Class<T> clss) throws IOException {
-        try {
-            ArrayList<T> list = new ArrayList<T>();
-            Gson gson = new Gson();
-            reader.beginArray();
-            while(reader.hasNext()) {
-                list.add((T) gson.fromJson(reader, clss));
-            }
-            reader.endArray();
-            reader.close();
-            return list;
         }
         catch(JsonParseException e) {
             throw new IOException(e);
@@ -116,5 +88,12 @@ public class RestUtils {
         }
         in.close();
     }
-    
+
+    public static void closeQuietly(Closeable closeable) {
+        try {
+            if (closeable != null) {
+                closeable.close();
+            }
+        } catch (Exception e) { /* Swallow quietly */ }
+    }
 }
