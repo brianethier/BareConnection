@@ -100,6 +100,7 @@ public class RestConnection {
     public static final String DEFAULT_CHARSET = "UTF-8";
     public static final int DEFAULT_CONNECT_TIMEOUT = 1000;
     public static final int DEFAULT_SOCKET_TIMEOUT = 10000;
+    public static final int DEFAULT_MAX_RETRY_ATTEMPTS = 5;
     
     public interface MultipartFormWriter {
         void onWrite(OutputStream out, String charset, String boundary) throws IOException;
@@ -107,6 +108,9 @@ public class RestConnection {
 
 
     private final HttpURLConnectionFactory mFactory;
+    private int mMaxRetryAttempts = DEFAULT_MAX_RETRY_ATTEMPTS;
+    private boolean mRetryOnIOException;
+    private BackOffPolicy mBackOffPolicy;
     private String mContentType = CONTENT_TYPE_JSON;
     private String mIncomingCharset = DEFAULT_CHARSET;
     private String mOutgoingCharset = DEFAULT_CHARSET;
@@ -118,7 +122,30 @@ public class RestConnection {
         }
         mFactory = factory;
     }
+    
+    public int getMaxRetryAttempts() {
+        return mMaxRetryAttempts;
+    }
 
+    public void setMaxRetryAttempts(int maxRetryAttempts) {
+        mMaxRetryAttempts = maxRetryAttempts;
+    }
+    
+    public boolean isRetryOnIOException() {
+        return mRetryOnIOException;
+    }
+    
+    public void setRetryOnIOException(boolean retryOnIOException) {
+        mRetryOnIOException = retryOnIOException;
+    }
+    
+    public BackOffPolicy getBackOffPolicy() {
+        return mBackOffPolicy;
+    }
+    
+    public void setBackOffPolicy(BackOffPolicy backOffPolicy) {
+        mBackOffPolicy = backOffPolicy;
+    }
     
     public String getContentType() {
         return mContentType;
@@ -181,14 +208,41 @@ public class RestConnection {
     }
     
     public RestResponse execute(String method, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
-        HttpURLConnection connection = mFactory.createHttpURLConnection(method);
-        if (object != null) {
-            String boundary = Long.toHexString(System.currentTimeMillis());
-            connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary)); 
-            connection.setDoOutput(true);
-            write(connection.getOutputStream(), object, boundary);
+        boolean validResponse = false;
+        if (mBackOffPolicy != null) {
+            mBackOffPolicy.reset();
         }
-        return new RestResponse(connection, mIncomingCharset);
+        int attempts = 0;
+        while (true) {
+            boolean retryAllowed = attempts++ < mMaxRetryAttempts;
+            HttpURLConnection connection = mFactory.createHttpURLConnection(method);
+            try {
+                if (object != null) {
+                    String boundary = Long.toHexString(System.currentTimeMillis());
+                    connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary)); 
+                    connection.setDoOutput(true);
+                    write(connection.getOutputStream(), object, boundary);
+                }
+                RestResponse response = new RestResponse(connection, mIncomingCharset);
+                if (retryAllowed && mBackOffPolicy != null && mBackOffPolicy.isBackOffRequired(response.getStatusCode())) {
+                    // If this returns false then we went over the max back off time, so don't don't try again
+                    if (mBackOffPolicy.backOff()) {
+                        continue;
+                    }
+                }
+                validResponse = true;
+                return response;
+            } catch (IOException e) {
+                if (retryAllowed && mRetryOnIOException) {
+                    continue;
+                }
+                throw e;
+            } finally {
+                if (!validResponse) {
+                    connection.disconnect();
+                }
+            }
+        } 
     }
     
     private String encodeContentType(Object object, String boundary) {
@@ -236,6 +290,10 @@ public class RestConnection {
             void onPrepareConnection(HttpURLConnection connection);
         }
 
+        private OnPrepareConnectionListener mListener;   
+        private int mMaxRetryAttempts = DEFAULT_MAX_RETRY_ATTEMPTS;
+        private boolean mRetryOnIOException;
+        private BackOffPolicy mBackOffPolicy;
         private RestProperties.Builder mPropertiesBuilder = new RestProperties.Builder();
         private String mAuthorizationType = AUTHORIZATION_TYPE_BASIC;
         private String mContentType = CONTENT_TYPE_JSON;
@@ -243,10 +301,24 @@ public class RestConnection {
         private String mOutgoingCharset = DEFAULT_CHARSET;
         private HashMap<String, String> mParams;
         private List<String> mCookies;
-        private OnPrepareConnectionListener mListener;        
         
         public Builder listener(OnPrepareConnectionListener listener) {
             mListener = listener;
+            return this;    
+        }
+        
+        public Builder maxRetryAttempts(int maxRetryAttempts) {
+            mMaxRetryAttempts = maxRetryAttempts;
+            return this;    
+        }
+        
+        public Builder retryOnIOException(boolean retryOnIOException) {
+            mRetryOnIOException = retryOnIOException;
+            return this;    
+        }
+        
+        public Builder backOffPolicy(BackOffPolicy backOffPolicy) {
+            mBackOffPolicy = backOffPolicy;
             return this;    
         }
         
@@ -358,6 +430,9 @@ public class RestConnection {
                 }
         	    
         	});
+            connection.mMaxRetryAttempts = mMaxRetryAttempts;
+            connection.mBackOffPolicy = mBackOffPolicy;
+            connection.mRetryOnIOException = mRetryOnIOException;
         	connection.mContentType = mContentType;
         	connection.mIncomingCharset = mIncomingCharset;
         	connection.mOutgoingCharset = mOutgoingCharset;
