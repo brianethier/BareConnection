@@ -43,7 +43,7 @@ public class DefaultMultipartFormWriter implements MultipartFormWriter {
                     writer.append("Content-Disposition: form-data; name=\"textFile\"; filename=\"" + fileEntity.getName() + "\"").append(CRLF);
                     writer.append("Content-Type: text/plain; charset=" + fileEntity.getCharset()).append(CRLF); // Text file itself must be saved in this charset!
                     writer.append(CRLF).flush();
-                    RestUtils.copy(new FileInputStream(fileEntity.getFile()), out);
+                    IOUtils.copy(new FileInputStream(fileEntity.getFile()), out);
                     out.flush(); // Important before continuing with writer!
                     writer.append(CRLF).flush(); // CRLF is important! It indicates end of boundary.
                 }
@@ -54,7 +54,7 @@ public class DefaultMultipartFormWriter implements MultipartFormWriter {
                     writer.append("Content-Type: " + URLConnection.guessContentTypeFromName(fileEntity.getFile().getName())).append(CRLF);
                     writer.append("Content-Transfer-Encoding: binary").append(CRLF);
                     writer.append(CRLF).flush();
-                    RestUtils.copy(new FileInputStream(fileEntity.getFile()), out);
+                    IOUtils.copy(new FileInputStream(fileEntity.getFile()), out);
                     out.flush(); // Important before continuing with writer!
                     writer.append(CRLF).flush(); // CRLF is important! It indicates end of boundary.
                 }

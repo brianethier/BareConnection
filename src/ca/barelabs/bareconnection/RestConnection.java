@@ -257,7 +257,7 @@ public class RestConnection {
 
     private void write(OutputStream out, Object object, String boundary) throws IOException {
         if (object instanceof InputStream) {
-            RestUtils.copy((InputStream) object, out);
+            IOUtils.copy((InputStream) object, out);
             out.flush();
             out.close();
         } else if (object instanceof String) {
@@ -266,7 +266,7 @@ public class RestConnection {
             out.flush();
             out.close();
         } else if (object instanceof Map) {
-            String query = RestUtils.buildQuery((Map<?,?>) object, mOutgoingCharset);
+            String query = RestUtils.toQuery((Map<?,?>) object, mOutgoingCharset);
             out.write(query.getBytes(mOutgoingCharset));
             out.flush();
             out.close();
@@ -403,12 +403,24 @@ public class RestConnection {
             return this;    
         }
         
+        public String getEncodedQuery() throws UnsupportedEncodingException {
+            StringBuilder query = new StringBuilder();
+            if (mParams != null && !mParams.isEmpty()) {
+                query.append(QUERY_SEPARATOR);
+                query.append(RestUtils.toQuery(mParams, mOutgoingCharset));
+            }
+            return query.toString();
+        }
+        
         public RestConnection build() {
             final RestProperties properties = mPropertiesBuilder.build();
         	RestConnection connection = new RestConnection(new HttpURLConnectionFactory() {
                 @Override
                 public HttpURLConnection createHttpURLConnection(String method) throws MalformedURLException, UnsupportedEncodingException, IOException {
-                    HttpURLConnection connection = (HttpURLConnection) new URL(createURL(properties)).openConnection();
+                    if (properties.getUrl() == null || properties.getUrl().isEmpty()) {
+                        throw new MalformedURLException("You must call url(...) with a valid URL value!");
+                    }
+                    HttpURLConnection connection = (HttpURLConnection) new URL(properties.getCompleteUrl() + getEncodedQuery()).openConnection();
                     connection.setRequestMethod(method);
                     connection.setConnectTimeout(properties.getConnectTimeout());
                     connection.setReadTimeout(properties.getReadTimeout());
@@ -437,24 +449,6 @@ public class RestConnection {
         	connection.mIncomingCharset = mIncomingCharset;
         	connection.mOutgoingCharset = mOutgoingCharset;
         	return connection;
-        }
-        
-        private String createURL(RestProperties properties) throws MalformedURLException, UnsupportedEncodingException {
-            if (properties.getUrl() == null || properties.getUrl().isEmpty()) {
-                throw new MalformedURLException("You must call url(...) with a valid URL value!");
-            }
-            StringBuilder url = new StringBuilder(properties.getUrl());
-            if (properties.getPath() != null && !properties.getPath().isEmpty()) {
-                if (!properties.getUrl().endsWith(PATH_SEPARATOR) && !properties.getPath().startsWith(PATH_SEPARATOR)) {
-                    url.append(PATH_SEPARATOR);
-                }
-                url.append(properties.getPath());
-            }
-            if (mParams != null && !mParams.isEmpty()) {
-                url.append(QUERY_SEPARATOR);
-                url.append(RestUtils.buildQuery(mParams, mOutgoingCharset));
-            }
-            return url.toString();
         }
     }
 }

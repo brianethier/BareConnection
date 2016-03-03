@@ -1,7 +1,6 @@
 package ca.barelabs.bareconnection;
 
 
-
 public class RestProperties {
 
     private final String mUrl;
@@ -42,6 +41,17 @@ public class RestProperties {
     
     public int getReadTimeout() {
         return mReadTimeout;
+    }
+    
+    public String getCompleteUrl() {
+        StringBuilder url = new StringBuilder(mUrl);
+        if (mPath != null && !mPath.isEmpty()) {
+            if (!mUrl.endsWith(RestConnection.PATH_SEPARATOR) && !mPath.startsWith(RestConnection.PATH_SEPARATOR)) {
+                url.append(RestConnection.PATH_SEPARATOR);
+            }
+            url.append(mPath);
+        }
+        return url.toString();
     }
     
     

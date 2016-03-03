@@ -74,7 +74,7 @@ public class RestResponse {
     public String parse() throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureValidStatusCode();
         try {
-            return RestUtils.readString(getContent(), mIncomingCharset);
+            return IOUtils.toString(getContent(), mIncomingCharset);
         } finally {
             disconnect();
         }
@@ -116,7 +116,7 @@ public class RestResponse {
 
     public void disconnect() {
         try {
-            RestUtils.closeQuietly(getContent());
+            IOUtils.closeQuietly(getContent());
         } catch (IOException e) { /* Ignore exception, attempting to disconnect. */ }
         mConnection.disconnect();
     }
@@ -133,7 +133,7 @@ public class RestResponse {
     
     private void ensureValidStatusCode() throws IOException {
         if (mStatusCode / 100 != 2) {
-            String responseError = RestUtils.readString(mConnection.getErrorStream(), mIncomingCharset);
+            String responseError = IOUtils.toString(mConnection.getErrorStream(), mIncomingCharset);
             throw new RestException(mStatusCode, responseError);
         }
     }

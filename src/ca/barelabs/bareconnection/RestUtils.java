@@ -1,32 +1,24 @@
 package ca.barelabs.bareconnection;
 
 import java.io.BufferedInputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.google.gson.stream.JsonReader;
 
-public class RestUtils {
-
+public class RestUtils {    
     
-    private RestUtils() {        
-    }
-    
-    
-    public static String buildQuery(Map<?, ?> params, String charset) throws UnsupportedEncodingException {
+    public static String toQuery(Map<?, ?> params, String charset) throws UnsupportedEncodingException {
         StringBuilder sb = new StringBuilder();
-        if(params != null) {
+        if (params != null) {
             Set<?> keySet = params.keySet();
             for (Object key : keySet) {
                 if (sb.length() > 0) {
@@ -37,18 +29,6 @@ public class RestUtils {
             }
         }
         return sb.toString();
-    }
-
-    public static String readString(InputStream is, String charset) throws IOException {
-        try {
-            Scanner s = new Scanner(is, charset);
-            s.useDelimiter("\\A");
-            String data = s.hasNext() ? s.next() : "";
-            s.close();
-            return data;
-        } catch(IllegalArgumentException e) {
-            throw new UnsupportedEncodingException(e.getMessage());
-        }
     }
 
     public static String toJson(Object src) {
@@ -77,23 +57,5 @@ public class RestUtils {
         catch(JsonParseException e) {
             throw new IOException(e);
         }
-    }
-    
-    public static void copy(InputStream in, OutputStream out) throws IOException {
-        byte[] bytes = new byte[4096];
-        int totalRead = 0;
-        while((totalRead = in.read(bytes)) > 0) {
-            out.write(bytes, 0, totalRead);;
-            out.flush();
-        }
-        in.close();
-    }
-
-    public static void closeQuietly(Closeable closeable) {
-        try {
-            if (closeable != null) {
-                closeable.close();
-            }
-        } catch (Exception e) { /* Swallow quietly */ }
     }
 }
