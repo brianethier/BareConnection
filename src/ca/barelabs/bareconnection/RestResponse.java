@@ -25,8 +25,6 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import ca.barelabs.barechatservice.utils.IOUtils;
-
 import com.google.gson.JsonParseException;
 import com.google.gson.stream.JsonReader;
 
@@ -118,7 +116,7 @@ public class RestResponse {
 
     public void disconnect() {
         try {
-            IOUtils.closeQuietly(getContent());
+            RestUtils.closeQuietly(getContent());
         } catch (IOException e) { /* Ignore exception, attempting to disconnect. */ }
         mConnection.disconnect();
     }
