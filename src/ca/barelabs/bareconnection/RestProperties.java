@@ -9,14 +9,16 @@ public class RestProperties {
     private final String mPassword;
     private final int mConnectTimeout;
     private final int mReadTimeout;
+    private final boolean mFollowRedirects;
     
-    public RestProperties(String url, String path, String username, String password, int connectTimeout, int readTimeout) {
+    public RestProperties(String url, String path, String username, String password, int connectTimeout, int readTimeout, boolean followRedirects) {
         mUrl = url;
         mPath = path;
         mUsername = username;
         mPassword = password;
         mConnectTimeout = connectTimeout;
         mReadTimeout = readTimeout;
+        mFollowRedirects = followRedirects;
     }
 
     public String getUrl() {
@@ -43,6 +45,10 @@ public class RestProperties {
         return mReadTimeout;
     }
     
+    public boolean isFollowRedirects() {
+        return mFollowRedirects;
+    }
+    
     public String getCompleteUrl() {
         StringBuilder url = new StringBuilder(mUrl);
         if (mPath != null && !mPath.isEmpty()) {
@@ -63,6 +69,7 @@ public class RestProperties {
         private String mPassword;
         private int mConnectTimeout = RestConnection.DEFAULT_CONNECT_TIMEOUT;
         private int mReadTimeout = RestConnection.DEFAULT_SOCKET_TIMEOUT;
+        private boolean mFollowRedirects;
 
         
         public Builder url(String url) {
@@ -95,8 +102,13 @@ public class RestProperties {
             return this;    
         }
         
+        public Builder followRedirects(boolean followRedirects) {
+            mFollowRedirects = followRedirects;
+            return this;    
+        }
+        
         public RestProperties build() {
-            return new RestProperties(mUrl, mPath, mUsername, mPassword, mConnectTimeout, mReadTimeout);
+            return new RestProperties(mUrl, mPath, mUsername, mPassword, mConnectTimeout, mReadTimeout, mFollowRedirects);
         }
     }
 }

@@ -352,6 +352,11 @@ public class RestConnection {
             return this;    
         }
         
+        public Builder followRedirects(boolean followRedirects) {
+            mPropertiesBuilder.followRedirects(followRedirects);
+            return this;    
+        }
+        
         public Builder properties(RestProperties properties) {
             if (properties != null) {
                 mPropertiesBuilder
@@ -448,6 +453,7 @@ public class RestConnection {
                     connection.setRequestMethod(method);
                     connection.setConnectTimeout(properties.getConnectTimeout());
                     connection.setReadTimeout(properties.getReadTimeout());
+                    connection.setInstanceFollowRedirects(properties.isFollowRedirects());
                     connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
                     if (properties.getUsername() != null && properties.getPassword() != null) {
                         String credentials = properties.getUsername() + ":" + properties.getPassword();
