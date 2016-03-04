@@ -15,7 +15,6 @@
  */
 package ca.barelabs.bareconnection;
 
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,6 +25,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 public class RestConnection {
     
@@ -112,6 +112,7 @@ public class RestConnection {
 
 
     private final HttpURLConnectionFactory mFactory;
+    private ObjectParser mParser = ObjectParser.getDefault();
     private int mMaxRetryAttempts = DEFAULT_MAX_RETRY_ATTEMPTS;
     private boolean mRetryOnIOException;
     private BackOffPolicy mBackOffPolicy;
@@ -127,6 +128,14 @@ public class RestConnection {
         mFactory = factory;
     }
     
+    public ObjectParser getParser() {
+        return mParser;
+    }
+
+    public void setParser(ObjectParser parser) {
+        mParser = parser;
+    }
+
     public int getMaxRetryAttempts() {
         return mMaxRetryAttempts;
     }
@@ -228,7 +237,7 @@ public class RestConnection {
                     connection.setDoOutput(true);
                     write(connection.getOutputStream(), object, boundary);
                 }
-                RestResponse response = new RestResponse(connection, mIncomingCharset);
+                RestResponse response = new RestResponse(connection, mParser, mIncomingCharset);
                 if (retryAllowed && mBackOffPolicy != null && mBackOffPolicy.isBackOffRequired(response.getStatusCode())) {
                     // If this returns false then we went over the max back off time, so don't don't try again
                     if (mBackOffPolicy.backOff()) {
@@ -280,11 +289,8 @@ public class RestConnection {
             writer.onWrite(out, mOutgoingCharset, boundary);
             out.flush();
             out.close();
-        } else if (object != null) {
-            String json = RestUtils.toJson(object);
-            out.write(json.getBytes(mOutgoingCharset));
-            out.flush();
-            out.close();
+        } else {
+            mParser.saveAndClose(object, out, mOutgoingCharset);
         }
     }
     
@@ -296,6 +302,7 @@ public class RestConnection {
         }
 
         private OnPrepareConnectionListener mListener;   
+        private ObjectParser mParser = ObjectParser.getDefault();
         private int mMaxRetryAttempts = DEFAULT_MAX_RETRY_ATTEMPTS;
         private boolean mRetryOnIOException;
         private BackOffPolicy mBackOffPolicy;
@@ -309,6 +316,11 @@ public class RestConnection {
         
         public Builder listener(OnPrepareConnectionListener listener) {
             mListener = listener;
+            return this;    
+        }
+        
+        public Builder parser(ObjectParser parser) {
+            mParser = parser;
             return this;    
         }
         
@@ -477,6 +489,7 @@ public class RestConnection {
                 }
         	    
         	});
+        	connection.mParser = mParser;
             connection.mMaxRetryAttempts = mMaxRetryAttempts;
             connection.mBackOffPolicy = mBackOffPolicy;
             connection.mRetryOnIOException = mRetryOnIOException;

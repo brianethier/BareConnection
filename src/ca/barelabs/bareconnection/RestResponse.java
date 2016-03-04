@@ -15,10 +15,8 @@
  */
 package ca.barelabs.bareconnection;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -26,19 +24,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 
-import com.google.gson.JsonParseException;
-import com.google.gson.stream.JsonReader;
-
 
 public class RestResponse {
     
     private final HttpURLConnection mConnection;
+    private final ObjectParser mParser;
     private final int mStatusCode;
     private final String mIncomingCharset;
     private InputStream mContent;
 
-    RestResponse(HttpURLConnection connection, String incomingCharset) throws IOException {
+    RestResponse(HttpURLConnection connection, ObjectParser parser, String incomingCharset) throws IOException {
         mConnection = connection;
+        mParser = parser;
         mStatusCode = connection.getResponseCode();
         mIncomingCharset = parseIncomingCharset(connection, incomingCharset);
     }
@@ -86,10 +83,7 @@ public class RestResponse {
     public <T> T parseAs(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureValidStatusCode();
         try {
-            if (clss == null) {
-                return null;
-            }
-            return RestUtils.fromJson(getContent(), mIncomingCharset, clss);
+            return mParser.parseAndClose(getContent(), mIncomingCharset, clss);
         } finally {
             disconnect();
         }
@@ -98,20 +92,7 @@ public class RestResponse {
     public <T> List<T> parseAsList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureValidStatusCode();
         try {
-            List<T> list = new ArrayList<T>();
-            if (clss != null) {
-                JsonReader reader = new JsonReader(new InputStreamReader(new BufferedInputStream(getContent()), mIncomingCharset));
-                reader.beginArray();
-                while (reader.hasNext()) {
-                    T next = RestUtils.fromJson(reader, clss);
-                    list.add(next);
-                }
-                reader.endArray();
-                reader.close();
-            }
-            return list;
-        } catch(JsonParseException e) {
-            throw new IOException(e);
+            return mParser.parseListAndClose(getContent(), mIncomingCharset, clss);
         } finally {
             disconnect();
         }
