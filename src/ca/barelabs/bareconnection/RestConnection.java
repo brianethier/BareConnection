@@ -299,7 +299,7 @@ public class RestConnection {
         private String mContentType = CONTENT_TYPE_JSON;
         private String mIncomingCharset = DEFAULT_CHARSET;
         private String mOutgoingCharset = DEFAULT_CHARSET;
-        private HashMap<String, String> mParams;
+        private HashMap<String, Object> mParams = new HashMap<>();
         private List<String> mCookies;
         
         public Builder listener(OnPrepareConnectionListener listener) {
@@ -386,16 +386,40 @@ public class RestConnection {
         }
         
         public Builder params(HashMap<String, String> params) {
-        	mParams = params;
+            if (params != null) {
+                mParams.putAll(params);
+            }
             return this;    
         }
         
-        public Builder param(String key, String value) {
-        	if(mParams == null) {
-        		mParams = new HashMap<String, String>();
-        	}
-        	mParams.put(key, value);
+        public Builder param(String key, Object value) {
+        	mParams.put(key, value == null ? "" : value);
             return this;    
+        }
+        
+        public Builder param(String key, int value) {
+            mParams.put(key, value);
+            return this;      
+        }
+        
+        public Builder param(String key, long value) {
+            mParams.put(key, value);
+            return this;     
+        }
+        
+        public Builder param(String key, float value) {
+            mParams.put(key, value);
+            return this;      
+        }
+        
+        public Builder param(String key, double value) {
+            mParams.put(key, value);
+            return this;      
+        }
+        
+        public Builder param(String key, boolean value) {
+            mParams.put(key, value);
+            return this;     
         }
         
         public Builder cookies(List<String> cookies) {
@@ -405,7 +429,7 @@ public class RestConnection {
         
         public String getEncodedQuery() throws UnsupportedEncodingException {
             StringBuilder query = new StringBuilder();
-            if (mParams != null && !mParams.isEmpty()) {
+            if (!mParams.isEmpty()) {
                 query.append(QUERY_SEPARATOR);
                 query.append(RestUtils.toQuery(mParams, mOutgoingCharset));
             }
