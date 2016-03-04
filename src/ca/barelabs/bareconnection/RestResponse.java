@@ -24,6 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
 
 import com.google.gson.JsonParseException;
 import com.google.gson.stream.JsonReader;
@@ -66,7 +67,9 @@ public class RestResponse {
     public InputStream getContent() throws IOException {
         ensureValidStatusCode();
         if (mContent == null) {
-            mContent = mConnection.getInputStream();
+            String encoding = mConnection.getContentEncoding();
+            boolean gzipped = encoding != null && encoding.equalsIgnoreCase(RestConnection.ENCODING_GZIP);
+            mContent = gzipped ? new GZIPInputStream(mConnection.getInputStream()) : mConnection.getInputStream();
         }
         return mContent;
     }

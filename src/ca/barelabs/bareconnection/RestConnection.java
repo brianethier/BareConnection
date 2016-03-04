@@ -83,12 +83,16 @@ public class RestConnection {
     public static final String HEADER_SET_COOKIE = "Set-Cookie";
     public static final String HEADER_COOKIE = "Cookie";
     public static final String HEADER_ACCEPT_CHARSET = "Accept-Charset";
+    public static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
     public static final String HEADER_AUTHORIZATION = "Authorization";
     
     public static final String KEY_CHARSET = "charset";
     public static final String KEY_BOUNDARY = "boundary";
 
     public static final String AUTHORIZATION_TYPE_BASIC = "Basic";
+    
+    public static final String ENCODING_GZIP = "gzip";
+    
     public static final String CONTENT_TYPE_TEXT = "text/plain";
     public static final String CONTENT_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded";
     public static final String CONTENT_TYPE_JSON = "application/json";
@@ -219,6 +223,7 @@ public class RestConnection {
             try {
                 if (object != null) {
                     String boundary = Long.toHexString(System.currentTimeMillis());
+                    connection.setRequestProperty(HEADER_ACCEPT_ENCODING, ENCODING_GZIP);
                     connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary)); 
                     connection.setDoOutput(true);
                     write(connection.getOutputStream(), object, boundary);
