@@ -61,6 +61,14 @@ public class RestResponse {
         return cookies;
     }
     
+    public InputStream getEncodedContent() throws IOException {
+        ensureValidStatusCode();
+        if (mContent == null) {
+            mContent = mConnection.getInputStream();
+        }
+        return mContent;
+    }
+    
     public InputStream getContent() throws IOException {
         ensureValidStatusCode();
         if (mContent == null) {

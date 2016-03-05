@@ -232,7 +232,6 @@ public class RestConnection {
             try {
                 if (object != null) {
                     String boundary = Long.toHexString(System.currentTimeMillis());
-                    connection.setRequestProperty(HEADER_ACCEPT_ENCODING, ENCODING_GZIP);
                     connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary)); 
                     connection.setDoOutput(true);
                     write(connection.getOutputStream(), object, boundary);
@@ -471,6 +470,7 @@ public class RestConnection {
                     connection.setConnectTimeout(properties.getConnectTimeout());
                     connection.setReadTimeout(properties.getReadTimeout());
                     connection.setInstanceFollowRedirects(properties.isFollowRedirects());
+                    connection.setRequestProperty(HEADER_ACCEPT_ENCODING, ENCODING_GZIP);
                     connection.setRequestProperty(HEADER_ACCEPT_CHARSET, mOutgoingCharset);
                     if (properties.getUsername() != null && properties.getPassword() != null) {
                         String credentials = properties.getUsername() + ":" + properties.getPassword();
