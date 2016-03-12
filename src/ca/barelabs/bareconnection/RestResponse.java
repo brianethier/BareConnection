@@ -72,9 +72,7 @@ public class RestResponse {
     public InputStream getContent() throws IOException {
         ensureValidStatusCode();
         if (mContent == null) {
-            String encoding = mConnection.getContentEncoding();
-            boolean gzipped = encoding != null && encoding.equalsIgnoreCase(RestConnection.ENCODING_GZIP);
-            mContent = gzipped ? new GZIPInputStream(mConnection.getInputStream()) : mConnection.getInputStream();
+            mContent = decodeStream(mConnection.getInputStream());
         }
         return mContent;
     }
@@ -113,6 +111,12 @@ public class RestResponse {
         mConnection.disconnect();
     }
     
+    private InputStream decodeStream(InputStream in) throws IOException {
+        String encoding = mConnection.getContentEncoding();
+        boolean gzipped = encoding != null && encoding.equalsIgnoreCase(RestConnection.ENCODING_GZIP);
+        return gzipped ? new GZIPInputStream(in) : in;
+    }
+    
     private String parseIncomingCharset(HttpURLConnection connection, String definedIncomingCharset) {
         String contentType = connection.getHeaderField(RestConnection.HEADER_CONTENT_TYPE);
         for (String param : contentType.replace(" ", "").split(";")) {
@@ -125,7 +129,7 @@ public class RestResponse {
     
     private void ensureValidStatusCode() throws IOException {
         if (mStatusCode / 100 != 2) {
-            String responseError = IOUtils.toString(mConnection.getErrorStream(), mIncomingCharset);
+            String responseError = IOUtils.toString(decodeStream(mConnection.getErrorStream()), mIncomingCharset);
             throw new RestException(mStatusCode, responseError);
         }
     }
