@@ -301,7 +301,7 @@ public class RestConnection {
         }
 
         private OnPrepareConnectionListener mListener;   
-        private ObjectParser mParser = ObjectParser.getDefault();
+        private ObjectParser mParser;
         private int mMaxRetryAttempts = DEFAULT_MAX_RETRY_ATTEMPTS;
         private boolean mRetryOnIOException;
         private BackOffPolicy mBackOffPolicy;
@@ -489,7 +489,9 @@ public class RestConnection {
                 }
         	    
         	});
-        	connection.mParser = mParser;
+        	if (mParser != null) {
+        		connection.mParser = mParser;
+        	}
             connection.mMaxRetryAttempts = mMaxRetryAttempts;
             connection.mBackOffPolicy = mBackOffPolicy;
             connection.mRetryOnIOException = mRetryOnIOException;
