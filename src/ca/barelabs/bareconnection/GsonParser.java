@@ -9,11 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.google.gson.stream.JsonReader;
 
 
-public class GsonParser extends ObjectParser {
+public class GsonParser implements ObjectParser {
     
     private final Gson mGson;
     
@@ -26,7 +27,33 @@ public class GsonParser extends ObjectParser {
         mGson = gson;
     }
 
-    <T> T parseAndClose(InputStream in, String charset, Class<T> clss) throws IOException {
+    public Gson getGson() {
+        return mGson;
+    }
+
+    public <T> T parse(JsonElement element, Class<T> clss) throws IOException {
+        try {
+            if (clss == null) {
+                return null;
+            }
+            return mGson.fromJson(element, clss);
+        } catch(JsonParseException e) {
+            throw new IOException(e);
+        }
+    }
+
+    public <T> T parse(String value, Class<T> clss) throws IOException {
+        try {
+            if (clss == null) {
+                return null;
+            }
+            return mGson.fromJson(value, clss);
+        } catch(JsonParseException e) {
+            throw new IOException(e);
+        }
+    }
+
+    public <T> T parseAndClose(InputStream in, String charset, Class<T> clss) throws IOException {
         try {
             if (clss == null) {
                 return null;
@@ -40,7 +67,7 @@ public class GsonParser extends ObjectParser {
         }
     }
 
-    <T> List<T> parseListAndClose(InputStream in, String charset, Class<T> clss) throws IOException {
+    public <T> List<T> parseListAndClose(InputStream in, String charset, Class<T> clss) throws IOException {
         try {
             List<T> list = new ArrayList<T>();
             if (clss != null) {
@@ -60,7 +87,7 @@ public class GsonParser extends ObjectParser {
         }
     }
 
-    void saveAndClose(Object object, OutputStream out, String charset) throws IOException {
+    public void saveAndClose(Object object, OutputStream out, String charset) throws IOException {
         try {
             if (object != null) {
                 String json = mGson.toJson(object);

@@ -112,7 +112,7 @@ public class RestConnection {
 
 
     private final HttpURLConnectionFactory mFactory;
-    private ObjectParser mParser = ObjectParser.getDefault();
+    private ObjectParser mParser;
     private int mMaxRetryAttempts = DEFAULT_MAX_RETRY_ATTEMPTS;
     private boolean mRetryOnIOException;
     private BackOffPolicy mBackOffPolicy;
@@ -129,6 +129,7 @@ public class RestConnection {
     }
     
     public ObjectParser getParser() {
+        ensureDefaultObjectParser();
         return mParser;
     }
 
@@ -221,6 +222,7 @@ public class RestConnection {
     }
     
     public RestResponse execute(String method, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    	ensureDefaultObjectParser();
         boolean validResponse = false;
         if (mBackOffPolicy != null) {
             mBackOffPolicy.reset();
@@ -288,8 +290,21 @@ public class RestConnection {
             writer.onWrite(out, mOutgoingCharset, boundary);
             out.flush();
             out.close();
-        } else {
+        } else if (mParser != null) {
             mParser.saveAndClose(object, out, mOutgoingCharset);
+        } else {
+            throw new IllegalStateException("Missing ObjectParser. See RestConnection.setParser() or include Gson dependency to default to GsonParser.");
+        }
+    }
+    
+	private void ensureDefaultObjectParser() {
+        try {
+        	if (mParser == null) {
+	            // Use GsonParser as default if user didn't specify a parser and the valid Gson dependency is present.
+	            Class.forName("com.google.gson.Gson", false, ObjectParser.class.getClassLoader());
+	            mParser = new GsonParser();
+        	}
+        } catch(ClassNotFoundException e) {
         }
     }
     

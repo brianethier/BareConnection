@@ -89,6 +89,9 @@ public class RestResponse {
     public <T> T parseAs(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureValidStatusCode();
         try {
+        	if (mParser == null) {
+                throw new IllegalStateException("Missing ObjectParser. See RestConnection.setParser() or include Gson dependency to default to GsonParser.");
+        	}
             return mParser.parseAndClose(getContent(), mIncomingCharset, clss);
         } finally {
             disconnect();
@@ -98,6 +101,9 @@ public class RestResponse {
     public <T> List<T> parseAsList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
         ensureValidStatusCode();
         try {
+        	if (mParser == null) {
+                throw new IllegalStateException("Missing ObjectParser. See RestConnection.setParser() or include Gson dependency to default to GsonParser.");
+        	}
             return mParser.parseListAndClose(getContent(), mIncomingCharset, clss);
         } finally {
             disconnect();
