@@ -261,7 +261,7 @@ public class RestConnection {
     }
     
     private String encodeContentType(Object object, String boundary) {
-        if (object instanceof Map) {
+        if (object instanceof Map || object instanceof MultiMap) {
             return CONTENT_TYPE_FORM_URLENCODED + ";" + KEY_CHARSET + "=" + mOutgoingCharset;
         } else if (object instanceof MultipartFormWriter) {
             return CONTENT_TYPE_MULTIPART_FORM + ";" + KEY_BOUNDARY + "=" + boundary;
@@ -282,6 +282,11 @@ public class RestConnection {
             out.close();
         } else if (object instanceof Map) {
             String query = RestUtils.toQuery((Map<?,?>) object, mOutgoingCharset);
+            out.write(query.getBytes(mOutgoingCharset));
+            out.flush();
+            out.close();
+        } else if (object instanceof MultiMap) {
+            String query = RestUtils.toQuery((MultiMap<?,?>) object, mOutgoingCharset);
             out.write(query.getBytes(mOutgoingCharset));
             out.flush();
             out.close();
