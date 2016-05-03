@@ -44,6 +44,10 @@ public class RestResponse {
         return mConnection;
     }
     
+    public ObjectParser getParser() {
+        return mParser;
+    }
+    
     public int getStatusCode() {
         return mStatusCode;
     }
