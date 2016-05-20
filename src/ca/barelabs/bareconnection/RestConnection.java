@@ -79,6 +79,7 @@ public class RestConnection {
     public static final int SC_GATEWAY_TIMEOUT = 504;
     public static final int SC_VERSION = 505;
 
+    public static final String HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String HEADER_CONTENT_TYPE = "Content-Type";
     public static final String HEADER_SET_COOKIE = "Set-Cookie";
     public static final String HEADER_COOKIE = "Cookie";
@@ -192,6 +193,10 @@ public class RestConnection {
     public RestResponse get() throws MalformedURLException, UnsupportedEncodingException, IOException {
         return execute(METHOD_GET, null);
     }
+    
+    public void get(ProxyStream stream) throws MalformedURLException, UnsupportedEncodingException, IOException{
+		execute(stream);
+    }
 
     public RestResponse put() throws MalformedURLException, UnsupportedEncodingException, IOException {
         return execute(METHOD_PUT, null);
@@ -199,6 +204,10 @@ public class RestConnection {
 
     public RestResponse put(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
         return execute(METHOD_PUT, object);
+    }
+    
+    public RestResponse put(InputStream inputStream, String contentType, int contentLength) throws MalformedURLException, UnsupportedEncodingException, IOException{
+    	return execute(METHOD_PUT, inputStream, contentType, contentLength);
     }
 
     public RestResponse post() throws MalformedURLException, UnsupportedEncodingException, IOException {
@@ -219,6 +228,43 @@ public class RestConnection {
     
     public RestResponse execute(String method) throws MalformedURLException, UnsupportedEncodingException, IOException {
         return execute(method, null);
+    }
+    
+    public void execute(ProxyStream stream) throws MalformedURLException, UnsupportedEncodingException, IOException{
+    	HttpURLConnection connection = mFactory.createHttpURLConnection(METHOD_GET);
+        try {
+            String contentType = connection.getContentType();
+            stream.getProperties().setContentType(contentType);
+            
+            int contentLength = connection.getContentLength();
+            stream.getProperties().setContentLength(contentLength);
+            
+            IOUtils.copy(connection.getInputStream(), stream.getOutputStream());
+
+        } catch (IOException e) {
+            throw e;
+        } finally {
+            connection.disconnect();
+        }
+    }
+    
+    public RestResponse execute(String method, InputStream inputStream, String contentType, int contentLength) throws MalformedURLException, UnsupportedEncodingException, IOException{
+    	HttpURLConnection connection = mFactory.createHttpURLConnection(method);
+        try {
+            if (inputStream != null) {
+                connection.setRequestProperty(HEADER_CONTENT_TYPE, contentType);
+                connection.setRequestProperty(HEADER_CONTENT_LENGTH, ""+contentLength);
+                connection.setDoOutput(true);
+                IOUtils.copy(inputStream, connection.getOutputStream());
+            }
+            RestResponse response = new RestResponse(connection, mParser, mIncomingCharset);
+            // TODO: Check the response and shape ours based on it
+            return response;
+        } catch (IOException e) {
+            throw e;
+        } finally {
+            connection.disconnect();
+        }
     }
     
     public RestResponse execute(String method, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
