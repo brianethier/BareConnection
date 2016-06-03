@@ -35,6 +35,7 @@ public class RestConnection {
     public static final String METHOD_POST = "POST";
     public static final String METHOD_PUT = "PUT";
     public static final String METHOD_DELETE = "DELETE";
+    public static final String METHOD_PATCH = "PATCH";
     public static final String METHOD_TRACE = "TRACE";
     public static final String METHOD_CONNECT = "CONNECT";
 
@@ -86,7 +87,8 @@ public class RestConnection {
     public static final String HEADER_ACCEPT_CHARSET = "Accept-Charset";
     public static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
     public static final String HEADER_AUTHORIZATION = "Authorization";
-    
+    public static final String HEADER_METHOD_OVERRIDE = "X-HTTP-Method-Override";   
+ 
     public static final String KEY_CHARSET = "charset";
     public static final String KEY_BOUNDARY = "boundary";
 
@@ -216,6 +218,14 @@ public class RestConnection {
 
     public RestResponse delete() throws MalformedURLException, UnsupportedEncodingException, IOException {
         return execute(METHOD_DELETE, null);
+    }
+
+    public RestResponse patch() throws MalformedURLException, UnsupportedEncodingException, IOException {
+        return execute(METHOD_PATCH, null);
+    }
+
+    public RestResponse patch(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+        return execute(METHOD_PATCH, object);
     }
     
     public RestResponse execute(String method) throws MalformedURLException, UnsupportedEncodingException, IOException {
@@ -493,7 +503,12 @@ public class RestConnection {
                         throw new MalformedURLException("You must call url(...) with a valid URL value!");
                     }
                     HttpURLConnection connection = (HttpURLConnection) new URL(properties.getCompleteUrl() + getEncodedQuery()).openConnection();
-                    connection.setRequestMethod(method);
+                    if (method.equals(METHOD_PATCH)) { // PATCH isn't yet supported by HttpURLConnection
+                        connection.setRequestMethod(METHOD_POST); // Post is supported
+                        connection.setRequestProperty(HEADER_METHOD_OVERRIDE, method); // Throw the unsupported method in there as an HTTP override header
+                    } else {
+                        connection.setRequestMethod(method);
+                    }
                     connection.setConnectTimeout(properties.getConnectTimeout());
                     connection.setReadTimeout(properties.getReadTimeout());
                     connection.setInstanceFollowRedirects(properties.isFollowRedirects());
