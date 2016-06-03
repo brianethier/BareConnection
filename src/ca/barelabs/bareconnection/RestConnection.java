@@ -80,6 +80,7 @@ public class RestConnection {
     public static final int SC_VERSION = 505;
 
     public static final String HEADER_CONTENT_TYPE = "Content-Type";
+    public static final String HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String HEADER_SET_COOKIE = "Set-Cookie";
     public static final String HEADER_COOKIE = "Cookie";
     public static final String HEADER_ACCEPT_CHARSET = "Accept-Charset";
@@ -234,7 +235,13 @@ public class RestConnection {
             try {
                 if (object != null) {
                     String boundary = Long.toHexString(System.currentTimeMillis());
-                    connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary)); 
+                	if (object instanceof ContentInputStream) {
+                		ContentInputStream content = (ContentInputStream) object;
+                        connection.setRequestProperty(HEADER_CONTENT_TYPE, content.getContentType());
+                        connection.setRequestProperty(HEADER_CONTENT_LENGTH, String.valueOf(content.getContentLength()));
+                    } else {
+                        connection.setRequestProperty(HEADER_CONTENT_TYPE, encodeContentType(object, boundary));
+                    }
                     connection.setDoOutput(true);
                     write(connection.getOutputStream(), object, boundary);
                 }
