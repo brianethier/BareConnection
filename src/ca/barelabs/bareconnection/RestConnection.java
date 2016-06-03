@@ -35,6 +35,7 @@ public class RestConnection {
     public static final String METHOD_POST = "POST";
     public static final String METHOD_PUT = "PUT";
     public static final String METHOD_DELETE = "DELETE";
+    public static final String METHOD_PATCH = "PATCH";
     public static final String METHOD_TRACE = "TRACE";
     public static final String METHOD_CONNECT = "CONNECT";
 
@@ -216,6 +217,14 @@ public class RestConnection {
 
     public RestResponse delete() throws MalformedURLException, UnsupportedEncodingException, IOException {
         return execute(METHOD_DELETE, null);
+    }
+
+    public RestResponse patch() throws MalformedURLException, UnsupportedEncodingException, IOException {
+        return execute(METHOD_PATCH, null);
+    }
+
+    public RestResponse patch(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+        return execute(METHOD_PATCH, object);
     }
     
     public RestResponse execute(String method) throws MalformedURLException, UnsupportedEncodingException, IOException {
