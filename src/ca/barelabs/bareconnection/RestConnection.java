@@ -506,7 +506,7 @@ public class RestConnection {
                     if (method.equals(METHOD_PATCH)) { // PATCH isn't yet supported by HttpURLConnection
                         connection.setRequestMethod(METHOD_POST); // Post is supported
                         connection.setRequestProperty(HEADER_METHOD_OVERRIDE, method); // Throw the unsupported method in there as an HTTP override header
-                    }else{
+                    } else {
                         connection.setRequestMethod(method);
                     }
                     connection.setConnectTimeout(properties.getConnectTimeout());
