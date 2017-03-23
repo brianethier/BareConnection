@@ -8,5 +8,5 @@ import java.net.MalformedURLException;
 
 public interface HttpURLConnectionFactory {
 
-    HttpURLConnection createHttpURLConnection(String method) throws MalformedURLException, UnsupportedEncodingException, IOException;
+    HttpURLConnection createHttpURLConnection(String method) throws IOException;
 }

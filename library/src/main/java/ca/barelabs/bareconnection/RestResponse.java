@@ -17,13 +17,11 @@ package ca.barelabs.bareconnection;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
-
 
 public class RestResponse {
     
@@ -81,7 +79,7 @@ public class RestResponse {
         return mContent;
     }
 
-    public String parse() throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public String parse() throws IOException {
         ensureValidStatusCode();
         try {
             return IOUtils.toString(getContent(), mIncomingCharset);
@@ -90,25 +88,25 @@ public class RestResponse {
         }
     }
 
-    public <T> T parseAs(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public <T> T parseAs(Class<T> clss) throws IOException {
         ensureValidStatusCode();
         try {
-        	if (mParser == null) {
+            if (mParser == null) {
                 throw new IllegalStateException("Missing ObjectParser. See RestConnection.setParser() or include Gson dependency to default to GsonParser.");
-        	}
+            }
             return mParser.parseAndClose(getContent(), mIncomingCharset, clss);
         } finally {
             disconnect();
         }
     }
 
-    public <T> List<T> parseAsList(Class<T> clss) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public <T> T parseAs(Type type) throws IOException {
         ensureValidStatusCode();
         try {
-        	if (mParser == null) {
+            if (mParser == null) {
                 throw new IllegalStateException("Missing ObjectParser. See RestConnection.setParser() or include Gson dependency to default to GsonParser.");
-        	}
-            return mParser.parseListAndClose(getContent(), mIncomingCharset, clss);
+            }
+            return mParser.parseAndClose(getContent(), mIncomingCharset, type);
         } finally {
             disconnect();
         }

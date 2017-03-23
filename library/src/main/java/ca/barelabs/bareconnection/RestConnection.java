@@ -188,51 +188,51 @@ public class RestConnection {
         mOutgoingCharset = outgoingCharset;
     }
 
-    public RestResponse head() throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse head() throws IOException {
         return execute(METHOD_HEAD, null);
     }
 
-    public RestResponse get() throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse get() throws IOException {
         return execute(METHOD_GET, null);
     }
 
-    public RestResponse put() throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse put() throws IOException {
         return execute(METHOD_PUT, null);
     }
 
-    public RestResponse put(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse put(Object object) throws IOException {
         return execute(METHOD_PUT, object);
     }
 
-    public RestResponse post() throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse post() throws IOException {
         return execute(METHOD_POST, null);
     }
 
-    public RestResponse post(List<Entity> entities) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse post(List<Entity> entities) throws IOException {
         return execute(METHOD_POST, new DefaultMultipartFormWriter(entities));
     }
 
-    public RestResponse post(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse post(Object object) throws IOException {
         return execute(METHOD_POST, object);
     }
 
-    public RestResponse delete() throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse delete() throws IOException {
         return execute(METHOD_DELETE, null);
     }
 
-    public RestResponse patch() throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse patch() throws IOException {
         return execute(METHOD_PATCH, null);
     }
 
-    public RestResponse patch(Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse patch(Object object) throws IOException {
         return execute(METHOD_PATCH, object);
     }
     
-    public RestResponse execute(String method) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse execute(String method) throws IOException {
         return execute(method, null);
     }
     
-    public RestResponse execute(String method, Object object) throws MalformedURLException, UnsupportedEncodingException, IOException {
+    public RestResponse execute(String method, Object object) throws IOException {
     	ensureDefaultObjectParser();
         boolean validResponse = false;
         if (mBackOffPolicy != null) {
@@ -529,7 +529,6 @@ public class RestConnection {
                     }
                     return connection;
                 }
-        	    
         	});
         	if (mParser != null) {
         		connection.mParser = mParser;
