@@ -88,18 +88,6 @@ public class RestResponse {
         }
     }
 
-    public <T> T parseAs(Class<T> clss) throws IOException {
-        ensureValidStatusCode();
-        try {
-            if (mParser == null) {
-                throw new IllegalStateException("Missing ObjectParser. See RestConnection.setParser() or include Gson dependency to default to GsonParser.");
-            }
-            return mParser.parseAndClose(getContent(), mIncomingCharset, clss);
-        } finally {
-            disconnect();
-        }
-    }
-
     public <T> T parseAs(Type type) throws IOException {
         ensureValidStatusCode();
         try {
