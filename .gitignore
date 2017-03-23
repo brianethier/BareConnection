@@ -1,8 +1,15 @@
+# Java class files
 *.class
 
-# Package Files #
-*.jar
-*.war
-*.ear
-/bin/
-/target/
+# generated files
+bin/
+gen/
+build/
+target/
+
+# IntelliJ
+.idea/**
+!.idea/codeStyleSettings.xml
+
+# Gradle:
+.gradle/
