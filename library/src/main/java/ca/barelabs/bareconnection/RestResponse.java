@@ -115,9 +115,11 @@ public class RestResponse {
     
     private String parseIncomingCharset(HttpURLConnection connection, String definedIncomingCharset) {
         String contentType = connection.getHeaderField(RestConnection.HEADER_CONTENT_TYPE);
-        for (String param : contentType.replace(" ", "").split(";")) {
-            if (param.startsWith(RestConnection.KEY_CHARSET + "=")) {
-                return param.split("=", 2)[1];
+        if (contentType != null) {
+            for (String param : contentType.replace(" ", "").split(";")) {
+                if (param.startsWith(RestConnection.KEY_CHARSET + "=")) {
+                    return param.split("=", 2)[1];
+                }
             }
         }
         return definedIncomingCharset;
